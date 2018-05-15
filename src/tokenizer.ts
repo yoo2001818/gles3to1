@@ -92,3 +92,8 @@ const lexer = moo.compile({
   question: '?',
   NL: { match: /\n/, lineBreaks: true },
 });
+
+export default function tokenize(code: string) {
+  lexer.reset(code);
+  return lexer;
+}
