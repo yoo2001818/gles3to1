@@ -93,6 +93,7 @@ const lexer = moo.compile({
   caret: '^',
   ampersand: '&',
   question: '?',
+  period: '.',
   NL: { match: /\n/, lineBreaks: true },
 });
 
