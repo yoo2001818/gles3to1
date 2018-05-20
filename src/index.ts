@@ -16,63 +16,60 @@ export default function convert(code: string, type: 'fragment' | 'vertex') {
 }
 
 function main(tokenizer: Lexer, state: State, result: string[]) {
-  let nextToken = tokenizer.next();
-  while (nextToken != null) {
-    match(nextToken, {
+  let token = tokenizer.next();
+  while (token != null) {
+    match(token, {
       in: () => result.push(state.type === 'vertex' ? 'attribute': 'varying'),
       out: () => state.type === 'vertex'
         ? result.push('varying')
-        : grabFragColor(tokenizer, state),
+        : getFragColor(tokenizer, state, result),
       identifier: (token: Token) => {
-        if (token.value === 'gl_FragColor' && state.fragColor) {
-          result.push(state.fragColor);
+        if (state.fragColor != null && state.fragColor === token.value) {
+          result.push('gl_FragColor');
         } else {
           result.push(token.value);
         }
-      }
-    })
-    nextToken = tokenizer.next();
-  }
-  /*
-  while (token = tokenizer.next()) {
-    switch (token.type) {
-      case 'in':
-        result.push(type === 'vertex' ? 'attribute' : 'varying');
-        break;
-      case 'out': {
-        if (type === 'vertex') {
-          result.push('varying');
-        } else {
-          // We need to convert the following value to gl_FragColor.
-          state = 'glFragColorPending';
-        }
-        break;
-      }
-      case 'identifier': {
-        if (state === 'glFragColorPending') {
-          scope['gl_FragColor'] = token.value;
-        } else if (token.value === 'gl_FragColor') {
-          result.push(scope['gl_FragColor'] || 'gl_FragColor');
+      },
+      pragma: (token: Token) => {
+        let keyword = /^\s*#([a-zA-Z_0-9]+)\s+(.+)$/.exec(token.value);
+        if (keyword == null) {
+          result.push(token.value);
+        } else if (keyword[1] === 'version') {
+          result.push('\n#version 100 es');
         } else {
           result.push(token.value);
         }
-        break;
-      }
-    }
-    if (token.type === 'in') {
-      result.push(type === 'vertex' ? 'attribute' : 'varying');
-    }
-    console.log(token.type, token.value);
+      },
+      otherwise: (token: Token) => result.push(token.value),
+    });
+    token = tokenizer.next();
   }
-  */
+  console.log(result.join(''));
 }
 
 function getFragColor(tokenizer: Lexer, state: State, result: string[]) {
+  let token = tokenizer.next();
+  while (token != null) {
+    let doContinue = true;
+    match(token, {
+      precisionIdentifier: () => {},
+      type: () => {},
+      WS: () => {},
+      comment: () => {},
+      identifier: (token: Token) => {
+        state.fragColor = token.value;
+        console.log(token.value);
+      },
+      semicolon: () => doContinue = false,
+    });
+    if (!doContinue) break;
+    token = tokenizer.next();
+  }
 }
 
-function match(
-  token: Token, patterns: { [key: string]: (token: Token) => any },
-) {
+function match<T>(
+  token: Token, patterns: { [key: string]: (token: Token) => T | any },
+): T | any {
   if (patterns[token.type] != null) return patterns[token.type](token);
   if (patterns['otherwise'] != null) return patterns['otherwise'](token);
   throw new Error('Unexpected token ' + token.value);

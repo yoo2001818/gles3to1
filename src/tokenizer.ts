@@ -2,8 +2,7 @@ import moo from 'moo';
 
 const lexer = moo.compile({
   WS: /[ \t]+/,
-  comment: /\/\/.+$/,
-  commentMultiline: /\/\*(?:.|\s)*?\*\//,
+  comment: /\/\/.+$|\/\*(?:.|\s)*?\*\//,
   pragma: /^\s*\#.+$/,
   identifier: {
     match: /[a-zA-Z_](?:[a-zA-Z_0-9]*)/,

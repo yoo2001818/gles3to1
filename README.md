@@ -2,7 +2,7 @@
 GLSL ES 3 to 1 transpiler
 
 # TODO
-- [ ] Convert `#version` to 100
+- [x] Convert `#version` to 100
 - [ ] Create uniform for `textureSize`, `texelFetch`
 - [ ] Polyfill `textureSize(sampler, lod)`
 - [ ] Polyfill `texelFetch(sampler, ivec2Position, lod)`
@@ -10,8 +10,8 @@ GLSL ES 3 to 1 transpiler
 - [ ] Convert `texture` to `texture2D`, `textureCube`
 - [ ] Polyfill `invert` and `transpose`
 - [ ] Polyfill bitwise operations
-- [ ] Convert `in` and `out`
-- [ ] Convert `out` to `gl_FragColor`
+- [x] Convert `in` and `out`
+- [x] Convert `out` to `gl_FragColor`
 - [ ] Convert `out` to `gl_FragData` (GL_EXT_draw_buffers)
 - [ ] Strip `layout` in uniform
 - [ ] Convert uniform layout to struct
