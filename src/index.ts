@@ -26,8 +26,33 @@ function main(tokenizer: Lexer, state: State, result: string[]) {
       identifier: (token: Token) => {
         if (state.fragColor != null && state.fragColor === token.value) {
           result.push('gl_FragColor');
+        } else if (token.value === 'texture') {
+          convertTexture(token, tokenizer, state, result);
         } else {
           result.push(token.value);
+        }
+      },
+      leftBrace: (token: Token) => {
+        result.push(token.value);
+        state.scopes.push({});
+      },
+      rightBrace: (token: Token) => {
+        result.push(token.value);
+        if (state.scopes.length <= 1) {
+          throw new Error('Unmatched braces');
+        }
+        state.scopes.pop();
+      },
+      type: (token: Token) => {
+        switch (token.value) {
+          case 'sampler2D':
+          case 'samplerCube':
+            result.push(token.value);
+            getVarDecl(token, tokenizer, state, result);
+            break;
+          default:
+            result.push(token.value);
+            break;
         }
       },
       pragma: (token: Token) => {
@@ -58,13 +83,50 @@ function getFragColor(tokenizer: Lexer, state: State, result: string[]) {
       comment: () => {},
       identifier: (token: Token) => {
         state.fragColor = token.value;
-        console.log(token.value);
       },
       semicolon: () => doContinue = false,
     });
     if (!doContinue) break;
     token = tokenizer.next();
   }
+}
+
+function getVarDecl(
+  typeToken: Token, tokenizer: Lexer, state: State, result: string[],
+) {
+  let typeName = typeToken.value;
+  let name: string | null = null;
+  let token = tokenizer.next();
+  while (token != null) {
+    let doContinue = true;
+    result.push(token.value);
+    match(token, {
+      precisionIdentifier: () => {},
+      type: () => {},
+      WS: () => {},
+      comment: () => {},
+      identifier: (token: Token) => {
+        name = token.value;
+      },
+      semicolon: () => doContinue = false,
+    });
+    if (!doContinue) {
+      if (name == null) {
+        throw new Error('VariatypeTokeble declaration name must be specified')
+      }
+      let scope = state.scopes[state.scopes.length - 1];
+      scope[name] = typeName;
+      console.log(scope);
+      break;
+    }
+    token = tokenizer.next();
+  }
+}
+
+function convertTexture(
+  funcToken: Token, tokenizer: Lexer, state: State, result: string[],
+) {
+  let buffer: string[] = [];
 }
 
 function match<T>(

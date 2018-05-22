@@ -6,7 +6,7 @@ GLSL ES 3 to 1 transpiler
 - [ ] Create uniform for `textureSize`, `texelFetch`
 - [ ] Polyfill `textureSize(sampler, lod)`
 - [ ] Polyfill `texelFetch(sampler, ivec2Position, lod)`
-- [ ] Detect type of sampler (For converting `texture`)
+- [x] Detect type of sampler (For converting `texture`)
 - [ ] Convert `texture` to `texture2D`, `textureCube`
 - [ ] Polyfill `invert` and `transpose`
 - [ ] Polyfill bitwise operations
