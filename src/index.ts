@@ -127,6 +127,32 @@ function convertTexture(
   funcToken: Token, tokenizer: Lexer, state: State, result: string[],
 ) {
   let buffer: string[] = [];
+  // texture(abc, def)
+  // Wouldn't it be better to use actual parser?
+  let token = tokenizer.next();
+  let depth = 1;
+  let args: string[] = [];
+  while (token != null) {
+    let doContinue = true;
+    buffer.push(token.value);
+    match(token, {
+      WS: () => {},
+      leftParen: () => {
+        depth += 1;
+      },
+      rightParen: () => {
+        depth -= 1;
+        if (depth <= 0) doContinue = false;
+      },
+      comma: () => {
+      },
+      identifier: (token: Token) => {
+        args.push(token.value);
+      },
+    });
+    if (!doContinue) break;
+    token = tokenizer.next();
+  }
 }
 
 function match<T>(
