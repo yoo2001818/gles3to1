@@ -8,7 +8,6 @@ class State {
   scopes: Scope[] = [{}];
   buffer: Token[] = [];
   lexer: Lexer;
-  output: string[] = [];
   fragColors: string[] = [];
   constructor(type: 'fragment' | 'vertex', lexer: Lexer) {
     this.type = type;
@@ -75,35 +74,34 @@ function peek(state: State) {
 export default function convert(code: string, type: 'fragment' | 'vertex') {
   let tokenizer = tokenize(code);
   let state = new State(type, tokenizer);
-  main(state);
-  return state.output;
+  return main(state);
 }
 
-function main(state: State) {
+function main(state: State, output: string[] = []) {
   while (match(state, {
-    in: () => state.output.push(
+    in: () => output.push(
       state.type === 'vertex' ? 'attribute' : 'varying'),
-    out: () => state.type === 'vertex' ? state.output.push('varying')
-      : getFragColor(state),
+    out: () => state.type === 'vertex' ? output.push('varying')
+      : getFragColor(state, output),
     identifier: (token: Token) => {
       let fragColorIndex = state.fragColors.indexOf(token.value);
       if (fragColorIndex !== -1) {
-        state.output.push(fragColorIndex === 0
+        output.push(fragColorIndex === 0
           ? 'gl_FragColor'
           : `gl_FragData[${fragColorIndex}]`);
       } else if (token.value === 'texture') {
-        state.output.push(token.value);
+        output.push(token.value);
         // convertTexture(state);
       } else {
-        state.output.push(token.value);
+        output.push(token.value);
       }
     },
     leftBrace: (token: Token) => {
-      state.output.push(token.value);
+      output.push(token.value);
       state.scopes.push({});
     },
     rightBrace: (token: Token) => {
-      state.output.push(token.value);
+      output.push(token.value);
       if (state.scopes.length <= 1) {
         throw new Error('Unmatched braces');
       }
@@ -114,30 +112,31 @@ function main(state: State) {
         case 'sampler2D':
         case 'samplerCube':
           state.push(token);
-          getVarDecl(state);
+          getVarDecl(state, output);
           break;
         default:
-          state.output.push(token.value);
+          output.push(token.value);
           break;
       }
     },
     pragma: (token: Token) => {
       let keyword = /^\s*#([a-zA-Z_0-9]+)\s+(.+)$/.exec(token.value);
       if (keyword == null) {
-        state.output.push(token.value);
+        output.push(token.value);
       } else if (keyword[1] === 'version') {
-        state.output.push('\n#version 100 es');
+        output.push('\n#version 100 es');
       } else {
-        state.output.push(token.value);
+        output.push(token.value);
       }
     },
-    otherwise: (token: Token) => state.output.push(token.value),
+    otherwise: (token: Token) => output.push(token.value),
     eof: () => true,
   }) !== true);
-  console.log(state.output.join(''));
+  console.log(output.join(''));
+  return output;
 }
 
-function getFragColor(state: State) {
+function getFragColor(state: State, output: string[]) {
   pullIf(state, 'precisionIdentifier');
   pull(state, 'type');
   let name = pull(state, 'identifier');
@@ -148,15 +147,27 @@ function getFragColor(state: State) {
   }
 }
 
-function getVarDecl(state: State) {
+function getVarDecl(state: State, output: string[]) {
   let type = pull(state, 'type');
-  state.output.push(type.value);
+  output.push(type.value);
   let name = pull(state, 'identifier');
-  state.output.push(name.value);
+  output.push(name.value);
   while (true) {
     let token = state.next();
-    state.output.push(token.value);
+    output.push(token.value);
     if (token == null || token.type === 'semicolon') break;
   }
   state.scopes[state.scopes.length - 1][name.value] = type.value;
+}
+
+function convertTexture(state: State, output: string[]) {
+  let outputBuf = [];
+  let name = pull(state, 'identifier');
+  outputBuf.push(name.value);
+  outputBuf.push(pull(state, 'leftParen').value);
+  parseArg(state, outputBuf);
+} 
+
+function parseArg(state: State, output: string[]) {
+
 }
