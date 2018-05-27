@@ -16,24 +16,35 @@ class State {
   push(token: Token) {
     this.buffer.push(token);
   }
-  next(outputWs: boolean = true): Token | undefined {
+  next(output: string[] | null): Token | undefined {
     if (this.buffer.length > 0) {
       return this.buffer.shift();
     }
     let token = this.lexer.next();
     if (token == null) return token;
     if (token.type === 'WS' || token.type === 'comment') {
-      if (outputWs) this.output.push(token.value);
-      return this.next(outputWs);
+      if (output != null) output.push(token.value);
+      return this.next(output);
     }
     return token;
   }
 }
 
+const TEXTURE_POLYFILL = `
+  vec4 texture(sampler2D sampler, vec2 coord) {
+    return texture2D(sampler, coord);
+  }
+
+  vec4 texture(samplerCube sampler, vec3 coord) {
+    return textureCube(sampler, coord);
+  }
+`;
+
 function match<T>(
-  state: State, patterns: { [key: string]: (token: Token) => T | any },
+  state: State, output: string[] | null,
+  patterns: { [key: string]: (token: Token) => T | any },
 ): T | any {
-  let token = state.next();
+  let token = state.next(output);
   if (token == null && patterns['eof'] != null) {
     return patterns['eof'](token);
   }
@@ -42,8 +53,8 @@ function match<T>(
   throw new Error('Unexpected token ' + token.value);
 }
 
-function pull(state: State, type: string) {
-  let token = state.next();
+function pull(state: State, output: string[] | null, type: string) {
+  let token = state.next(output);
   if (token == null) throw new Error('Unexpected end of input');
   if (token.type !== type) {
     throw new Error('Token error; expected ' + type + ' but received ' +
@@ -53,9 +64,10 @@ function pull(state: State, type: string) {
 }
 
 function pullIf<T>(
-  state: State, type: string, then?: (token: Token) => T,
+  state: State, output: string[] | null,
+  type: string, then?: (token: Token) => T,
 ): T | false | true {
-  let token = state.next();
+  let token = state.next(output);
   if (token == null) throw new Error('Unexpected end of input');
   if (token.type !== type) {
     state.push(token);
@@ -65,8 +77,8 @@ function pullIf<T>(
   return then(token);
 }
 
-function peek(state: State) {
-  let token = state.next();
+function peek(state: State, output: string[] | null) {
+  let token = state.next(output);
   state.push(token);
   return token;
 }
@@ -78,7 +90,7 @@ export default function convert(code: string, type: 'fragment' | 'vertex') {
 }
 
 function main(state: State, output: string[] = []) {
-  while (match(state, {
+  while (match(state, output, {
     in: () => output.push(
       state.type === 'vertex' ? 'attribute' : 'varying'),
     out: () => state.type === 'vertex' ? output.push('varying')
@@ -125,6 +137,8 @@ function main(state: State, output: string[] = []) {
         output.push(token.value);
       } else if (keyword[1] === 'version') {
         output.push('\n#version 100 es');
+        // Declare 'texture' polyfill beneath it
+        output.push('\n' + TEXTURE_POLYFILL);
       } else {
         output.push(token.value);
       }
@@ -137,37 +151,56 @@ function main(state: State, output: string[] = []) {
 }
 
 function getFragColor(state: State, output: string[]) {
-  pullIf(state, 'precisionIdentifier');
-  pull(state, 'type');
-  let name = pull(state, 'identifier');
+  pullIf(state, output, 'precisionIdentifier');
+  pull(state, output, 'type');
+  let name = pull(state, output, 'identifier');
   state.fragColors.push(name.value);
   while (true) {
-    let token = state.next();
+    let token = state.next(output);
     if (token == null || token.type === 'semicolon') break;
   }
 }
 
 function getVarDecl(state: State, output: string[]) {
-  let type = pull(state, 'type');
+  let type = pull(state, output, 'type');
   output.push(type.value);
-  let name = pull(state, 'identifier');
+  let name = pull(state, output, 'identifier');
   output.push(name.value);
   while (true) {
-    let token = state.next();
+    let token = state.next(output);
     output.push(token.value);
     if (token == null || token.type === 'semicolon') break;
   }
   state.scopes[state.scopes.length - 1][name.value] = type.value;
 }
 
-function convertTexture(state: State, output: string[]) {
-  let outputBuf = [];
-  let name = pull(state, 'identifier');
-  outputBuf.push(name.value);
-  outputBuf.push(pull(state, 'leftParen').value);
-  parseArg(state, outputBuf);
-} 
+// primaryExpression
+// postfixExpression
+// integerExpression
+// functionCall
+// functionCallOrMethod
+// functionCallGeneric
+// functionCallHeaderNoParameters
+// functionCallHeaderWithParameters
+// functionCallHeader
+// functionIdentifier
+// unaryExpression
+// unaryOperator
+// multiplicativeExpression
+// additiveExpression
+// shiftExpression
+// relationalExpression
+// equalityExpression
+// andExpression
+// exclusiveOrExpression
+// inclusiveOrExpression
+// logicalAndExpression
+// logicalXorExpression
+// logicalOrExpression
+// conditionalExpression
+// assignmentOperator
+// expression
+// constantExpression
 
 function parseArg(state: State, output: string[]) {
-
 }
