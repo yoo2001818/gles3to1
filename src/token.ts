@@ -70,22 +70,33 @@ type PostfixExpression = PrimaryExpression |
 type ConstantExpression = PrimaryExpression | PostfixExpression |
   UnaryExpression | BinaryExpression | ConditionalExpression;
 type Expression = ConstantExpression | AssignmentExpression |
-  SeqeunceExpression
+  SeqeunceExpression;
+
+type StructSpecifier = {
+  type: 'structSpecifier',
+  name: string | null,
+  declarations: StructDeclaration[],
+};
+
+type TypeExpression = TypeConstant;
 
 type LayoutQualifierId = { name: string, value: number | null };
 type TypeQualifier = {
   layout: LayoutQualifierId[],
   storage: string | null,
   interpolation: string | null,
-  invariant: string | null,
+  invariant: boolean | null,
 };
 type TypeSpecifier = {
   precision: string | null,
-  valueType: TypeConstant,
+  valueType: TypeExpression,
   isArray: boolean,
   size: ConstantExpression | null,
 };
 type FullType = TypeQualifier & TypeSpecifier;
+type StructDeclaration = FullType & {
+  name: string,
+};
 type ParameterDeclaration = TypeSpecifier & {
   name: string,
   isConst: boolean,
@@ -114,15 +125,67 @@ type InitDeclarationList = {
 type PrecisionDeclaration = {
   type: 'precisionDeclaration',
   precision: string,
-  valueType: TypeConstant,
+  valueType: TypeExpression,
 };
 
+type TypeDeclaration = {
+  type: 'typeDeclaration',
+  valueType: TypeExpression,
+};
 
-/*
-type_qualifier IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE SEMICOLON
-type_qualifier IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE
-IDENTIFIER SEMICOLON
-type_qualifier IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE
-IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET SEMICOLON
-type_qualifier SEMICOLON
-*/
+type Declaration = FunctionPrototype | InitDeclaration |
+  PrecisionDeclaration | TypeDeclaration;
+
+type DeclarationStatement = {
+  type: 'declarationStatement',
+  declaration: Declaration,
+};
+
+type ExpressionStatement = {
+  type: 'expressionStatement',
+  expression: Expression | null,
+};
+
+type SelectionStatement = {
+  type: 'selectionStatement',
+  test: Expression,
+  consequent: Expression,
+  alternate: null | Expression,
+};
+
+type SwitchStatement = {
+  type: 'switchStatement',
+  test: Expression,
+  statements: Statement[],
+};
+
+type CaseStatement = {
+  type: 'caseStatement',
+  isDefault: boolean,
+  value: Expression,
+};
+
+type IterationStatement = {
+  type: 'iterationStatement',
+  iterationType: 'for' | 'while' | 'do while',
+  init: Expression | null,
+  test: Expression,
+  loop: Expression | null,
+  statements: Statement[],
+};
+
+type JumpStatement = {
+  type: 'jumpStatement',
+  iterationType: 'continue' | 'break' | 'return' | 'discard',
+  value: Expression | null,
+};
+
+type CompoundStatement = {
+  type: 'compoundStatement',
+  statements: Statement[],
+};
+
+type Statement = DeclarationStatement | ExpressionStatement |
+  SelectionStatement | SwitchStatement | CaseStatement |
+  IterationStatement | JumpStatement |
+  CompoundStatement;
