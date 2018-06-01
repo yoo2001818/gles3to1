@@ -189,3 +189,15 @@ type Statement = DeclarationStatement | ExpressionStatement |
   SelectionStatement | SwitchStatement | CaseStatement |
   IterationStatement | JumpStatement |
   CompoundStatement;
+
+type FunctionDeclaration = {
+  type: 'functionDeclaration',
+  name: string,
+  returns: FullType,
+  arguments: ParameterDeclaration[],
+  statements: Statement[],
+};
+
+type ExternalDeclaration = Declaration | FunctionDeclaration;
+
+type File = ExternalDeclaration[];
