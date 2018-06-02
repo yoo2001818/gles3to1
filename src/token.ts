@@ -1,40 +1,41 @@
-type Token = { type: string, rawValue: string };
+export type Block = { type: string, startPos: number, endPos: number };
+export type Token = Block & { rawValue: string };
 
-type Identifier = Token & { type: 'identifier', value: string };
-type TypeConstant = Token & { type: 'typeConstant', value: string };
-type IntConstant = Token & { type: 'intConstant', value: number };
-type UintConstant = Token & { type: 'uintConstant', value: number };
-type FloatConstant = Token & { type: 'floatConstant', value: number };
-type BoolConstant = Token & { type: 'boolConstant', value: boolean };
+export type Identifier = Token & { type: 'identifier', value: string };
+export type TypeConstant = Token & { type: 'typeConstant', value: string };
+export type IntConstant = Token & { type: 'intConstant', value: number };
+export type UintConstant = Token & { type: 'uintConstant', value: number };
+export type FloatConstant = Token & { type: 'floatConstant', value: number };
+export type BoolConstant = Token & { type: 'boolConstant', value: boolean };
 
-type ArrayExpression = {
+export type ArrayExpression = Block & {
   type: 'arrayExpression', array: Expression, index: Expression,
 };
 
-type MemberExpression = {
+export type MemberExpression = Block & {
   type: 'memberExpression', object: Expression, index: Identifier, 
 };
 
-type CallExpression = {
+export type CallExpression = Block & {
   type: 'callExpression',
   callee: Expression | TypeConstant | null,
   arguments: Expression[],
 };
 
-type UpdateExpression = {
+export type UpdateExpression = Block & {
   type: 'updateExpression',
   operator: '--' | '++',
   prefix: boolean,
   argument: Expression, 
 };
 
-type UnaryExpression = {
+export type UnaryExpression = Block & {
   type: 'unaryExpression',
   operator: '+' | '-' | '!' | '~',
   argument: Expression,
 };
 
-type BinaryExpression = {
+export type BinaryExpression = Block & {
   type: 'binaryExpression',
   operator: '*' | '/' | '%' | '+' | '-' | '<<' | '>>' |
     '<' | '>' | '<=' | '>=' | '==' | '!=' | '&' | '^' | '|' |
@@ -43,14 +44,14 @@ type BinaryExpression = {
   right: Expression,
 };
 
-type ConditionalExpression = {
+export type ConditionalExpression = Block & {
   type: 'conditionalExpression',
   test: Expression,
   consequent: Expression,
   alternate: Expression,
 };
 
-type AssignmentExpression = {
+export type AssignmentExpression = Block & {
   type: 'assignmentExpression',
   operator: '=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' |
     '&=' | '^=' | '|=',
@@ -58,114 +59,114 @@ type AssignmentExpression = {
   right: Expression,
 };
 
-type SeqeunceExpression = {
+export type SeqeunceExpression = Block & {
   type: 'sequenceExpression',
   expressions: Expression[],
 };
 
-type PrimaryExpression = Identifier | IntConstant | UintConstant |
+export type PrimaryExpression = Identifier | IntConstant | UintConstant |
   FloatConstant | BoolConstant;
-type PostfixExpression = PrimaryExpression | 
+export type PostfixExpression = PrimaryExpression | 
   ArrayExpression | MemberExpression | CallExpression | UpdateExpression;
-type ConstantExpression = PrimaryExpression | PostfixExpression |
+export type ConstantExpression = PrimaryExpression | PostfixExpression |
   UnaryExpression | BinaryExpression | ConditionalExpression;
-type Expression = ConstantExpression | AssignmentExpression |
+export type Expression = ConstantExpression | AssignmentExpression |
   SeqeunceExpression;
 
-type StructSpecifier = {
+export type StructSpecifier = Block & {
   type: 'structSpecifier',
   name: string | null,
   declarations: StructDeclaration[],
 };
 
-type TypeExpression = TypeConstant;
+export type TypeExpression = TypeConstant;
 
-type LayoutQualifierId = { name: string, value: number | null };
-type TypeQualifier = {
+export type LayoutQualifierId = { name: string, value: number | null };
+export type TypeQualifier = {
   layout: LayoutQualifierId[],
   storage: string | null,
   interpolation: string | null,
   invariant: boolean | null,
 };
-type TypeSpecifier = {
+export type TypeSpecifier = {
   precision: string | null,
   valueType: TypeExpression,
   isArray: boolean,
   size: ConstantExpression | null,
 };
-type FullType = TypeQualifier & TypeSpecifier;
-type StructDeclaration = FullType & {
+export type FullType = TypeQualifier & TypeSpecifier;
+export type StructDeclaration = FullType & {
   name: string,
 };
-type ParameterDeclaration = TypeSpecifier & {
+export type ParameterDeclaration = TypeSpecifier & {
   name: string,
   isConst: boolean,
   qualifier: null | 'in' | 'out' | 'inout',
 };
 
-type FunctionPrototype = {
+export type FunctionPrototype = Block & {
   type: 'functionPrototype',
   name: string,
   returns: FullType,
   arguments: ParameterDeclaration[],
 };
 
-type InitDeclaration = {
+export type InitDeclaration = Block & {
   type: 'initDeclaration',
   valueType: FullType,
   name: string,
   value: null | Expression,
 };
 
-type InitDeclarationList = {
+export type InitDeclarationList = Block & {
   type: 'initDeclarationList',
   declarations: InitDeclaration[],
 };
 
-type PrecisionDeclaration = {
+export type PrecisionDeclaration = Block & {
   type: 'precisionDeclaration',
   precision: string,
   valueType: TypeExpression,
 };
 
-type TypeDeclaration = {
+export type TypeDeclaration = Block & {
   type: 'typeDeclaration',
   valueType: TypeExpression,
 };
 
-type Declaration = FunctionPrototype | InitDeclaration |
+export type Declaration = FunctionPrototype | InitDeclaration |
   PrecisionDeclaration | TypeDeclaration;
 
-type DeclarationStatement = {
+export type DeclarationStatement = Block & {
   type: 'declarationStatement',
   declaration: Declaration,
 };
 
-type ExpressionStatement = {
+export type ExpressionStatement = Block & {
   type: 'expressionStatement',
   expression: Expression | null,
 };
 
-type SelectionStatement = {
+export type SelectionStatement = Block & {
   type: 'selectionStatement',
   test: Expression,
   consequent: Expression,
   alternate: null | Expression,
 };
 
-type SwitchStatement = {
+export type SwitchStatement = Block & {
   type: 'switchStatement',
   test: Expression,
   statements: Statement[],
 };
 
-type CaseStatement = {
+export type CaseStatement = Block & {
   type: 'caseStatement',
   isDefault: boolean,
   value: Expression,
 };
 
-type IterationStatement = {
+export type IterationStatement = Block & {
   type: 'iterationStatement',
   iterationType: 'for' | 'while' | 'do while',
   init: Expression | null,
@@ -174,23 +175,23 @@ type IterationStatement = {
   statements: Statement[],
 };
 
-type JumpStatement = {
+export type JumpStatement = Block & {
   type: 'jumpStatement',
   iterationType: 'continue' | 'break' | 'return' | 'discard',
   value: Expression | null,
 };
 
-type CompoundStatement = {
+export type CompoundStatement = Block & {
   type: 'compoundStatement',
   statements: Statement[],
 };
 
-type Statement = DeclarationStatement | ExpressionStatement |
+export type Statement = DeclarationStatement | ExpressionStatement |
   SelectionStatement | SwitchStatement | CaseStatement |
   IterationStatement | JumpStatement |
   CompoundStatement;
 
-type FunctionDeclaration = {
+export type FunctionDeclaration = Block & {
   type: 'functionDeclaration',
   name: string,
   returns: FullType,
@@ -198,6 +199,6 @@ type FunctionDeclaration = {
   statements: Statement[],
 };
 
-type ExternalDeclaration = Declaration | FunctionDeclaration;
+export type ExternalDeclaration = Declaration | FunctionDeclaration;
 
-type File = ExternalDeclaration[];
+export type File = ExternalDeclaration[];
