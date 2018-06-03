@@ -79,7 +79,7 @@ export type StructSpecifier = Block & {
   declarations: StructDeclaration[],
 };
 
-export type TypeExpression = TypeConstant;
+export type TypeExpression = TypeConstant | Identifier | StructSpecifier;
 
 export type LayoutQualifierId = { name: string, value: number | null };
 export type TypeQualifier = {
@@ -134,7 +134,7 @@ export type TypeDeclaration = Block & {
   valueType: TypeExpression,
 };
 
-export type Declaration = FunctionPrototype | InitDeclaration |
+,export type Declaration = FunctionPrototype | InitDeclaration |
   PrecisionDeclaration | TypeDeclaration;
 
 export type DeclarationStatement = Block & {
