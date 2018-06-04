@@ -100,17 +100,28 @@ function typeSpecifier(state: State): Tokens.TypeSpecifier {
   
 }
 
-function typeSpecifierType(state: State) {
-  return match(state, {
-    type: (token: Token): Tokens.TypeConstant =>
-      constantToken('typeConstant', token.value, token),
-    struct: () => {
-
-    },
-    identifier: (token: Token) => {
-
-    },
+function typeSpecifierType(state: State): Tokens.TypeExpression {
+  return match<Tokens.TypeExpression>(state, {
+    type: (token: Token) =>
+      constantToken<Tokens.TypeConstant>('typeConstant', token.value, token),
+    struct: () => structType(state),
+    identifier: (token: Token) =>
+      constantToken<Tokens.Identifier>('identifier', token.value, token),
   });
+}
+
+function structType(state: State) {
+  let name = pullIf(state, 'identifier', (token: Token) => token.value);
+  pull(state, 'leftBrace');
+  let declarations: Tokens.StructDeclaration[] = [];
+  do {
+    let qualifier = typeQualifier(state);
+    let specifier = typeSpecifier(state);
+    let name = pull(state, 'identifier').value;
+    // TODO Parse array
+    declarations.push({ ...qualifier, ...specifier, name });
+    pull(state, 'semicolon');
+  } while (peek(state).type !== 'rightBrace');
 }
 
 /*
@@ -127,7 +138,9 @@ function typeQualifier(state: State): Tokens.TypeQualifier {
 }
 
 
-function constantToken<T, B>(type: B, value: T, token: Token) {
+function constantToken<B extends { type: any, value: any }>(
+  type: B['type'], value: B['value'], token: Token,
+) {
   return {
     type,
     value,
