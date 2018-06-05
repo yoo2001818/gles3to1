@@ -1,4 +1,4 @@
-export type Block = { type: string, startPos: number, endPos: number };
+export type Block = { type: string, /* startPos: number, endPos: number */ };
 export type Token = Block & { rawValue: string };
 
 export type Identifier = Token & { type: 'identifier', value: string };

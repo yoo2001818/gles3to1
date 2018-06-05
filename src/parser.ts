@@ -43,16 +43,21 @@ function pull(state: State, type: string) {
   return token;
 }
 
+function pullIf(state: State, type: string): Token | null;
+function pullIf<T>(
+  state: State, type: string, then: (token: Token) => T,
+): T | null;
+
 function pullIf<T>(
   state: State, type: string, then?: (token: Token) => T,
-): T | false | true {
+): T | Token | null {
   let token = state.next();
   if (token == null) throw new Error('Unexpected end of input');
   if (token.type !== type) {
     state.push(token);
-    return false;
+    return null;
   }
-  if (then == null) return true;
+  if (then == null) return token;
   return then(token);
 }
 
@@ -110,8 +115,9 @@ function typeSpecifierType(state: State): Tokens.TypeExpression {
   });
 }
 
-function structType(state: State) {
-  let name = pullIf(state, 'identifier', (token: Token) => token.value);
+function structType(state: State): Tokens.StructSpecifier {
+  let name: string | null = 
+    pullIf(state, 'identifier', (token: Token) => token.value);
   pull(state, 'leftBrace');
   let declarations: Tokens.StructDeclaration[] = [];
   do {
@@ -120,8 +126,20 @@ function structType(state: State) {
     let name = pull(state, 'identifier').value;
     // TODO Parse array
     declarations.push({ ...qualifier, ...specifier, name });
+    while (peek(state).type === 'comma') {
+      declarations.push({
+        ...qualifier,
+        ...specifier,
+        name: pull(state, 'identifier').value,
+      });
+    }
     pull(state, 'semicolon');
   } while (peek(state).type !== 'rightBrace');
+  return {
+    type: 'structSpecifier',
+    name,
+    declarations,
+  };
 }
 
 /*
