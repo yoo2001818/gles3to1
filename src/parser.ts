@@ -102,20 +102,24 @@ function declaration(state: State): Tokens.ExternalDeclaration {
 function typeSpecifier(state: State): Tokens.TypeSpecifier {
   let precision = pullIf(state, 'precisionQualifier',
     (token: Token) => token.value);
-  
+  let valueType = typeSpecifierType(state);
 }
 
 function typeSpecifierType(state: State): Tokens.TypeExpression {
   return match<Tokens.TypeExpression>(state, {
     type: (token: Token) =>
       constantToken<Tokens.TypeConstant>('typeConstant', token.value, token),
-    struct: () => structType(state),
+    struct: (token: Token) => {
+      state.push(token);
+      return structType(state);
+    },
     identifier: (token: Token) =>
       constantToken<Tokens.Identifier>('identifier', token.value, token),
   });
 }
 
 function structType(state: State): Tokens.StructSpecifier {
+  pull(state, 'struct');
   let name: string | null = 
     pullIf(state, 'identifier', (token: Token) => token.value);
   pull(state, 'leftBrace');
@@ -142,6 +146,63 @@ function structType(state: State): Tokens.StructSpecifier {
   };
 }
 
+function typeQualifier(state: State): Tokens.TypeQualifier {
+  let layout: Tokens.LayoutQualifierId[] = null;
+  let storage: string | null = null;
+  let interpolation: string | null = null;
+  let invariant: boolean = false;
+  if (peek(state).type === 'leftParen') {
+    layout = layoutQualifier(state);
+  }
+  invariant = !!pullIf(state, 'invariant');
+  interpolation = pullIf(state, 'interpolationQualifier',
+    (token: Token) => token.value);
+  if (['const', 'in', 'out', 'centroid', 'uniform']
+    .includes(peek(state).type)
+  ) {
+    storage = storageQualifier(state);
+  }
+  return { layout, storage, interpolation, invariant };
+}
+
+function layoutQualifier(state: State): Tokens.LayoutQualifierId[] {
+  // identifier, identifier = constant
+  let qualifiers: Tokens.LayoutQualifierId[] = [];
+  pull(state, 'leftParen');
+  do {
+    let name = pull(state, 'identifier').value;
+    let value = null;
+    if (pullIf(state, 'equal')) {
+      value = parseInt(pull(state, 'intConstant').value, 10);
+    }
+    qualifiers.push({ name, value });
+  } while (pullIf(state, 'comma'));
+  pull(state, 'rightParen');
+  return qualifiers
+  /*
+  storage_qualifier
+  layout_qualifier
+  layout_qualifier storage_qualifier
+  interpolation_qualifier storage_qualifier
+  interpolation_qualifier
+  invariant_qualifier storage_qualifier
+  invariant_qualifier interpolation_qualifier storage_qualifier
+  */;
+}
+
+function storageQualifier(state: State): string {
+  return match(state, {
+    const: () => 'const',
+    in: () => 'in',
+    out: () => 'out',
+    uniform: () => 'uniform',
+    centroid: () => match(state, {
+      in: () => 'centroid in',
+      out: () => 'centroid out',
+    }),
+  });
+}
+
 /*
 storage_qualifier
 layout_qualifier
@@ -151,11 +212,6 @@ interpolation_qualifier
 invariant_qualifier storage_qualifier
 invariant_qualifier interpolation_qualifier storage_qualifier
 */
-function typeQualifier(state: State): Tokens.TypeQualifier {
-  
-}
-
-
 function constantToken<B extends { type: any, value: any }>(
   type: B['type'], value: B['value'], token: Token,
 ) {
