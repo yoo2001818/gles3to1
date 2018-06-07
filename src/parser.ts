@@ -99,10 +99,78 @@ type_qualifier SEMICOLON
 function declaration(state: State): Tokens.ExternalDeclaration {
 }
 
+function primaryExpression(state: State): Tokens.Expression {
+  return match(state, {
+    identifier: (token: Token) => constantToken<Tokens.Identifier>(
+      'identifier', token.value, token),
+    intConstant: (token: Token) => constantToken<Tokens.IntConstant>(
+      'intConstant', parseInt(token.value, 10), token),
+    floatConstant: (token: Token) => constantToken<Tokens.FloatConstant>(
+      'floatConstant', parseFloat(token.value), token),
+    'true': (token: Token) => constantToken<Tokens.BoolConstant>(
+      'boolConstant', true, token),
+    'false': (token: Token) => constantToken<Tokens.BoolConstant>(
+      'boolConstant', false, token),
+  });
+}
+
+function postfixExpression(state: State): Tokens.Expression {
+  let expression = primaryExpression(state);
+  return expression;
+}
+
+const UPDATE_TABLE = { incOp: '--' as '--', decOp: '++' as '++' };
+const UNARY_TABLE = {
+  plus: '+' as '+',
+  dash: '-' as '-',
+  bang: '!' as '!',
+  tlide: '~' as '~',
+};
+
+function unaryExpression(state: State): Tokens.Expression {
+  let token = state.next();
+  switch (token.type) {
+    case 'incOp':
+    case 'decOp':
+      return {
+        type: 'updateExpression',
+        operator: UPDATE_TABLE[token.type],
+        prefix: false,
+        argument: postfixExpression(state),
+      };
+    case 'plus':
+    case 'dash':
+    case 'bang':
+    case 'tlide':
+      return {
+        type: 'unaryExpression',
+        operator: UNARY_TABLE[token.type],
+        argument: postfixExpression(state),
+      };
+    default:
+      state.push(token);
+      return postfixExpression(state);
+  }
+}
+
+function constantExpression(state: State): Tokens.ConstantExpression {
+  // TODO Nooo
+}
+
 function typeSpecifier(state: State): Tokens.TypeSpecifier {
   let precision = pullIf(state, 'precisionQualifier',
     (token: Token) => token.value);
   let valueType = typeSpecifierType(state);
+  let isArray = false;
+  let size = null;
+  if (pullIf(state, 'leftBrace')) {
+    isArray = true;
+    if (peek(state).type !== 'rightBrace') {
+      size = constantExpression(state);
+    }
+    pull(state, 'rightBrace');
+  }
+  return { precision, valueType, isArray, size };
 }
 
 function typeSpecifierType(state: State): Tokens.TypeExpression {
@@ -120,7 +188,7 @@ function typeSpecifierType(state: State): Tokens.TypeExpression {
 
 function structType(state: State): Tokens.StructSpecifier {
   pull(state, 'struct');
-  let name: string | null = 
+  let name: string | null =
     pullIf(state, 'identifier', (token: Token) => token.value);
   pull(state, 'leftBrace');
   let declarations: Tokens.StructDeclaration[] = [];
@@ -178,16 +246,7 @@ function layoutQualifier(state: State): Tokens.LayoutQualifierId[] {
     qualifiers.push({ name, value });
   } while (pullIf(state, 'comma'));
   pull(state, 'rightParen');
-  return qualifiers
-  /*
-  storage_qualifier
-  layout_qualifier
-  layout_qualifier storage_qualifier
-  interpolation_qualifier storage_qualifier
-  interpolation_qualifier
-  invariant_qualifier storage_qualifier
-  invariant_qualifier interpolation_qualifier storage_qualifier
-  */;
+  return qualifiers;
 }
 
 function storageQualifier(state: State): string {
@@ -203,15 +262,6 @@ function storageQualifier(state: State): string {
   });
 }
 
-/*
-storage_qualifier
-layout_qualifier
-layout_qualifier storage_qualifier
-interpolation_qualifier storage_qualifier
-interpolation_qualifier
-invariant_qualifier storage_qualifier
-invariant_qualifier interpolation_qualifier storage_qualifier
-*/
 function constantToken<B extends { type: any, value: any }>(
   type: B['type'], value: B['value'], token: Token,
 ) {
