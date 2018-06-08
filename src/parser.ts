@@ -115,8 +115,44 @@ function primaryExpression(state: State): Tokens.Expression {
 }
 
 function postfixExpression(state: State): Tokens.Expression {
-  let expression = primaryExpression(state);
-  return expression;
+  let expression: Tokens.Expression = primaryExpression(state);
+  const next = (): Tokens.Expression => match(state, {
+    leftBrace: () => {},
+    leftParen: () => {},
+    period: () => {
+      let token = pull(state, 'identifier');
+      expression = {
+        type: 'memberExpression',
+        object: expression,
+        index: constantToken<Tokens.Identifier>(
+          'identifier', token.value, token),
+      };
+      return next();
+    },
+    incOp: () => {
+      expression = {
+        type: 'updateExpression',
+        operator: '++',
+        prefix: false,
+        argument: expression,
+      };
+      return next();
+    },
+    decOp: () => {
+      expression = {
+        type: 'updateExpression',
+        operator: '--',
+        prefix: false,
+        argument: expression,
+      };
+      return next();
+    },
+    otherwise: (token: Token) => {
+      state.push(token);
+      return expression;
+    },
+  });
+  return next();
 }
 
 const UPDATE_TABLE = { incOp: '--' as '--', decOp: '++' as '++' };
