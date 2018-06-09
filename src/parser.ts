@@ -99,7 +99,7 @@ type_qualifier SEMICOLON
 function declaration(state: State): Tokens.ExternalDeclaration {
 }
 
-function primaryExpression(state: State): Tokens.Expression {
+function primaryConstantExpression(state: State): Tokens.Expression {
   return match(state, {
     identifier: (token: Token) => constantToken<Tokens.Identifier>(
       'identifier', token.value, token),
@@ -114,18 +114,43 @@ function primaryExpression(state: State): Tokens.Expression {
   });
 }
 
+function primaryExpression(state: State): Tokens.Expression {
+  // TODO parens
+  return primaryConstantExpression(state);
+}
+
 function postfixExpression(state: State): Tokens.Expression {
   let expression: Tokens.Expression = primaryExpression(state);
   const next = (): Tokens.Expression => match(state, {
-    leftBrace: () => {},
-    leftParen: () => {},
+    leftBrace: () => {
+      let value = constantExpression(state);
+      pull(state, 'rightBrace');
+      expression = {
+        type: 'arrayExpression',
+        array: expression,
+        index: value,
+      };
+      return next();
+    },
+    leftParen: () => {
+      let args: Tokens.Expression[] = [];
+      do {
+        args.push(constantExpression(state));
+      } while (pullIf(state, 'comma'));
+      pull(state, 'rightParen');
+      expression = {
+        type: 'callExpression',
+        callee: expression,
+        arguments: args,
+      };
+      return next();
+    },
     period: () => {
-      let token = pull(state, 'identifier');
+      let value = primaryConstantExpression(state);
       expression = {
         type: 'memberExpression',
         object: expression,
-        index: constantToken<Tokens.Identifier>(
-          'identifier', token.value, token),
+        index: value,
       };
       return next();
     },
@@ -234,7 +259,7 @@ function structType(state: State): Tokens.StructSpecifier {
     let name = pull(state, 'identifier').value;
     // TODO Parse array
     declarations.push({ ...qualifier, ...specifier, name });
-    while (peek(state).type === 'comma') {
+    while (pullIf(state, 'comma')) {
       declarations.push({
         ...qualifier,
         ...specifier,
@@ -242,7 +267,7 @@ function structType(state: State): Tokens.StructSpecifier {
       });
     }
     pull(state, 'semicolon');
-  } while (peek(state).type !== 'rightBrace');
+  } while (pullIf(state, 'rightBrace'));
   return {
     type: 'structSpecifier',
     name,

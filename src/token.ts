@@ -13,7 +13,7 @@ export type ArrayExpression = Block & {
 };
 
 export type MemberExpression = Block & {
-  type: 'memberExpression', object: Expression, index: Identifier, 
+  type: 'memberExpression', object: Expression, index: Expression, 
 };
 
 export type CallExpression = Block & {
