@@ -115,7 +115,11 @@ function primaryConstantExpression(state: State): Tokens.Expression {
 }
 
 function primaryExpression(state: State): Tokens.Expression {
-  // TODO parens
+  if (pullIf(state, 'leftParen')) {
+    let value = expression(state);
+    pull(state, 'rightParen');
+    return value;
+  }
   return primaryConstantExpression(state);
 }
 
@@ -181,14 +185,6 @@ function postfixExpression(state: State): Tokens.Expression {
   return next();
 }
 
-const UPDATE_TABLE = { incOp: '--' as '--', decOp: '++' as '++' };
-const UNARY_TABLE = {
-  plus: '+' as '+',
-  dash: '-' as '-',
-  bang: '!' as '!',
-  tlide: '~' as '~',
-};
-
 function unaryExpression(state: State): Tokens.Expression {
   let token = state.next();
   switch (token.type) {
@@ -196,7 +192,7 @@ function unaryExpression(state: State): Tokens.Expression {
     case 'decOp':
       return {
         type: 'updateExpression',
-        operator: UPDATE_TABLE[token.type],
+        operator: token.value,
         prefix: false,
         argument: postfixExpression(state),
       };
@@ -206,31 +202,13 @@ function unaryExpression(state: State): Tokens.Expression {
     case 'tlide':
       return {
         type: 'unaryExpression',
-        operator: UNARY_TABLE[token.type],
+        operator: token.value,
         argument: postfixExpression(state),
       };
     default:
       state.push(token);
       return postfixExpression(state);
   }
-}
-
-function constantExpression(state: State): Tokens.Expression {
-  return conditionalExpression(state);
-}
-
-function conditionalExpression(state: State): Tokens.Expression {
-  let test = binaryExpression(state);
-  if (!pullIf(state, 'question')) return test;
-  let consequent = binaryExpression(state);
-  pullIf(state, 'colon');
-  let alternate = binaryExpression(state);
-  return {
-    type: 'conditionalExpression',
-    test,
-    consequent,
-    alternate,
-  };
 }
 
 const BINARY_TABLE = [
@@ -254,16 +232,63 @@ function binaryExpression(state: State): Tokens.Expression {
 function handleBinaryExpr(state: State, depth: number = 0): Tokens.Expression {
   if (BINARY_TABLE[depth] == null) return unaryExpression(state);
   let expression = handleBinaryExpr(state, depth + 1);
-  let op = pullIf(state, BINARY_TABLE[depth]);
+  let op = pullIf(state, BINARY_TABLE[depth], (token: Token) => token.value);
   if (op != null) {
     return {
       type: 'binaryExpression',
-      operator: op.value,
+      operator: op,
       left: expression,
       right: handleBinaryExpr(state, depth),
     };
   }
   return expression;
+}
+
+function conditionalExpression(state: State): Tokens.Expression {
+  let test = binaryExpression(state);
+  if (!pullIf(state, 'question')) return test;
+  let consequent = binaryExpression(state);
+  pullIf(state, 'colon');
+  let alternate = binaryExpression(state);
+  return {
+    type: 'conditionalExpression',
+    test,
+    consequent,
+    alternate,
+  };
+}
+
+function constantExpression(state: State): Tokens.Expression {
+  return conditionalExpression(state);
+}
+
+const ASSIGNMENT_TABLE = ['equal', 'mulAssign', 'divAssign', 'addAssign',
+  'modAssign', 'leftAssign', 'rightAssign', 'andAssign', 'xorAssign',
+  'orAssign', 'subAssign'];
+
+function assignmentExpression(state: State): Tokens.Expression {
+  let left = conditionalExpression(state);
+  let op = pullIf(state, ASSIGNMENT_TABLE, (token: Token) => token.value);
+  if (op == null) return left;
+  let right = assignmentExpression(state);
+  return {
+    type: 'assignmentExpression',
+    operator: op,
+    left,
+    right,
+  };
+}
+
+function expression(state: State): Tokens.Expression {
+  let exprs = [];
+  do {
+    exprs.push(assignmentExpression(state));
+  } while (pullIf(state, 'comma'));
+  if (exprs.length === 1) return exprs[0];
+  return {
+    type: 'sequenceExpression',
+    expressions: exprs,
+  };
 }
 
 function typeSpecifier(state: State): Tokens.TypeSpecifier {

@@ -24,14 +24,14 @@ export type CallExpression = Block & {
 
 export type UpdateExpression = Block & {
   type: 'updateExpression',
-  operator: '--' | '++',
+  operator: string,
   prefix: boolean,
   argument: Expression, 
 };
 
 export type UnaryExpression = Block & {
   type: 'unaryExpression',
-  operator: '+' | '-' | '!' | '~',
+  operator: string,
   argument: Expression,
 };
 
@@ -51,9 +51,8 @@ export type ConditionalExpression = Block & {
 
 export type AssignmentExpression = Block & {
   type: 'assignmentExpression',
-  operator: '=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' |
-    '&=' | '^=' | '|=',
-  left: UnaryExpression,
+  operator: string,
+  left: Expression,
   right: Expression,
 };
 
