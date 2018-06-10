@@ -37,9 +37,7 @@ export type UnaryExpression = Block & {
 
 export type BinaryExpression = Block & {
   type: 'binaryExpression',
-  operator: '*' | '/' | '%' | '+' | '-' | '<<' | '>>' |
-    '<' | '>' | '<=' | '>=' | '==' | '!=' | '&' | '^' | '|' |
-    '&&' | '^^' | '||';
+  operator: string,
   left: Expression,
   right: Expression,
 };
@@ -92,7 +90,7 @@ export type TypeSpecifier = {
   precision: string | null,
   valueType: TypeExpression,
   isArray: boolean,
-  size: ConstantExpression | null,
+  size: Expression | null,
 };
 export type FullType = TypeQualifier & TypeSpecifier;
 export type StructDeclaration = FullType & {

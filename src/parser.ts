@@ -33,27 +33,27 @@ function match<T>(
   throw new Error('Unexpected token ' + token.value);
 }
 
-function pull(state: State, type: string) {
+function pull(state: State, type: string | string[]) {
   let token = state.next();
   if (token == null) throw new Error('Unexpected end of input');
-  if (token.type !== type) {
+  if (Array.isArray(type) ? type.includes(token.type) : token.type !== type) {
     throw new Error('Token error; expected ' + type + ' but received ' +
       token.type);
   }
   return token;
 }
 
-function pullIf(state: State, type: string): Token | null;
+function pullIf(state: State, type: string | string[]): Token | null;
 function pullIf<T>(
-  state: State, type: string, then: (token: Token) => T,
+  state: State, type: string | string[], then: (token: Token) => T,
 ): T | null;
 
 function pullIf<T>(
-  state: State, type: string, then?: (token: Token) => T,
+  state: State, type: string | string[], then?: (token: Token) => T,
 ): T | Token | null {
   let token = state.next();
   if (token == null) throw new Error('Unexpected end of input');
-  if (token.type !== type) {
+  if (Array.isArray(type) ? type.includes(token.type) : token.type !== type) {
     state.push(token);
     return null;
   }
@@ -135,6 +135,7 @@ function postfixExpression(state: State): Tokens.Expression {
     leftParen: () => {
       let args: Tokens.Expression[] = [];
       do {
+        if (pullIf(state, 'void')) break;
         args.push(constantExpression(state));
       } while (pullIf(state, 'comma'));
       pull(state, 'rightParen');
@@ -214,8 +215,55 @@ function unaryExpression(state: State): Tokens.Expression {
   }
 }
 
-function constantExpression(state: State): Tokens.ConstantExpression {
-  // TODO Nooo
+function constantExpression(state: State): Tokens.Expression {
+  return conditionalExpression(state);
+}
+
+function conditionalExpression(state: State): Tokens.Expression {
+  let test = binaryExpression(state);
+  if (!pullIf(state, 'question')) return test;
+  let consequent = binaryExpression(state);
+  pullIf(state, 'colon');
+  let alternate = binaryExpression(state);
+  return {
+    type: 'conditionalExpression',
+    test,
+    consequent,
+    alternate,
+  };
+}
+
+const BINARY_TABLE = [
+  ['orOp'],
+  ['xorOp'],
+  ['andOp'],
+  ['verticalBar'],
+  ['caret'],
+  ['ampersand'],
+  ['eqOp', 'neOp'],
+  ['leftAngle', 'rightAngle', 'leOp', 'geOp'],
+  ['leftOp', 'rightOp'],
+  ['plus', 'dash'],
+  ['star', 'slash', 'percent'],
+];
+
+function binaryExpression(state: State): Tokens.Expression {
+  return handleBinaryExpr(state);
+}
+
+function handleBinaryExpr(state: State, depth: number = 0): Tokens.Expression {
+  if (BINARY_TABLE[depth] == null) return unaryExpression(state);
+  let expression = handleBinaryExpr(state, depth + 1);
+  let op = pullIf(state, BINARY_TABLE[depth]);
+  if (op != null) {
+    return {
+      type: 'binaryExpression',
+      operator: op.value,
+      left: expression,
+      right: handleBinaryExpr(state, depth),
+    };
+  }
+  return expression;
 }
 
 function typeSpecifier(state: State): Tokens.TypeSpecifier {
