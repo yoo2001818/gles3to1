@@ -1,5 +1,12 @@
 import parse, { expression } from '../parser';
 
+const assign = (op: string, left: any, right: any) => ({
+  type: 'assignmentExpression',
+  operator: op,
+  left,
+  right,
+});
+
 const bin = (op: string, left: any, right: any) => ({
   type: 'binaryExpression',
   operator: op,
@@ -15,6 +22,14 @@ const int = (start: number, value: string) => ({
   rawValue: value,
 });
 
+const ident = (start: number, value: string) => ({
+  type: 'identifier',
+  value: value,
+  startPos: start,
+  endPos: start + value.length,
+  rawValue: value,
+});
+
 describe('parser', () => {
   it('should parse expressions correctly', () => {
     expect(parse('1 * 2 + 3 * 4', expression)).toEqual(bin('+',
@@ -24,5 +39,39 @@ describe('parser', () => {
       int(0, '1'), bin('+', int(4, '2'), int(8, '3'))));
     expect(parse('(1 + 2) * 3', expression)).toEqual(bin('*',
       bin('+', int(1, '1'), int(5, '2')), int(10, '3')));
+  });
+  it('should parse assignment expressions correctly', () => {
+    expect(parse('a = b *= c', expression)).toEqual(assign('=', ident(0, 'a'),
+      assign('*=', ident(4, 'b'), ident(9, 'c'))));
+  });
+  it('should parse sequence expressions correctly', () => {
+    expect(parse('a, b, c', expression)).toEqual({
+      type: 'sequenceExpression',
+      expressions: [ident(0, 'a'), ident(3, 'b'), ident(6, 'c')],
+    });
+  });
+  it('should parse conditional expressions correctly', () => {
+    expect(parse('a = a ? b + 1 : c | 0', expression)).toEqual(assign('=',
+      ident(0, 'a'), {
+        type: 'conditionalExpression',
+        test: ident(4, 'a'),
+        consequent: bin('+', ident(8, 'b'), int(12, '1')),
+        alternate: bin('|', ident(16, 'c'), int(20, '0'))
+      }));
+  });
+  it('should parse unary expressions correctly', () => {
+    expect(parse('-a.b[0]', expression)).toEqual({
+      type: 'unaryExpression',
+      operator: '-',
+      argument: {
+        type: 'arrayExpression',
+        array: {
+          type: 'memberExpression',
+          object: ident(1, 'a'),
+          index: ident(3, 'b'),
+        },
+        index: int(5, '0'),
+      },
+    })
   });
 });

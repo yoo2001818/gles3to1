@@ -130,9 +130,9 @@ function primaryExpression(state: State): Tokens.Expression {
 function postfixExpression(state: State): Tokens.Expression {
   let expression: Tokens.Expression = primaryExpression(state);
   const next = (): Tokens.Expression => match(state, {
-    leftBrace: () => {
+    leftBracket: () => {
       let value = constantExpression(state);
-      pull(state, 'rightBrace');
+      pull(state, 'rightBracket');
       expression = {
         type: 'arrayExpression',
         array: expression,
