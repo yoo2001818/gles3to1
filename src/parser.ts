@@ -2,6 +2,8 @@ import { Lexer, Token } from 'moo';
 import * as Tokens from './token';
 import tokenize from './tokenizer';
 
+const IGNORE_TOKENS = ['WS', 'NL', 'comment', 'pragma'];
+
 class State {
   buffer: Token[] = [];
   lexer: Lexer;
@@ -16,8 +18,10 @@ class State {
     if (this.buffer.length > 0) {
       return this.buffer.shift();
     }
-    let token = this.lexer.next();
-    return token;
+    while (true) {
+      let token = this.lexer.next();
+      if (token == null || !IGNORE_TOKENS.includes(token.type)) return token;
+    }
   }
 }
 
@@ -25,18 +29,16 @@ function match<T>(
   state: State, patterns: { [key: string]: (token: Token) => T | any },
 ): T | any {
   let token = state.next();
-  if (token == null && patterns['eof'] != null) {
-    return patterns['eof'](token);
-  }
-  if (patterns[token.type] != null) return patterns[token.type](token);
+  let type = token == null ? 'eof' : token.type;
+  if (patterns[type] != null) return patterns[type](token);
   if (patterns['otherwise'] != null) return patterns['otherwise'](token);
-  throw new Error('Unexpected token ' + token.value);
+  throw new Error('Unexpected token ' + (token == null ? type : token.value));
 }
 
 function pull(state: State, type: string | string[]) {
   let token = state.next();
   if (token == null) throw new Error('Unexpected end of input');
-  if (Array.isArray(type) ? type.includes(token.type) : token.type !== type) {
+  if (Array.isArray(type) ? !type.includes(token.type) : token.type !== type) {
     throw new Error('Token error; expected ' + type + ' but received ' +
       token.type);
   }
@@ -52,8 +54,8 @@ function pullIf<T>(
   state: State, type: string | string[], then?: (token: Token) => T,
 ): T | Token | null {
   let token = state.next();
-  if (token == null) throw new Error('Unexpected end of input');
-  if (Array.isArray(type) ? type.includes(token.type) : token.type !== type) {
+  let tokenType = token == null ? 'eof' : token.type;
+  if (Array.isArray(type) ? !type.includes(tokenType) : tokenType !== type) {
     state.push(token);
     return null;
   }
@@ -67,10 +69,12 @@ function peek(state: State) {
   return token;
 }
 
-export default function parse(code: string) {
+export default function parse(
+  code: string, entry: (state: State) => any = main,
+) {
   let tokenizer = tokenize(code);
   let state = new State(tokenizer);
-  return main(state);
+  return entry(state);
 }
 
 function main(state: State): Tokens.File {
@@ -187,6 +191,7 @@ function postfixExpression(state: State): Tokens.Expression {
 
 function unaryExpression(state: State): Tokens.Expression {
   let token = state.next();
+  if (token == null) throw new Error('Unexpected EOF');
   switch (token.type) {
     case 'incOp':
     case 'decOp':
@@ -231,17 +236,18 @@ function binaryExpression(state: State): Tokens.Expression {
 
 function handleBinaryExpr(state: State, depth: number = 0): Tokens.Expression {
   if (BINARY_TABLE[depth] == null) return unaryExpression(state);
-  let expression = handleBinaryExpr(state, depth + 1);
+  let left = handleBinaryExpr(state, depth + 1);
   let op = pullIf(state, BINARY_TABLE[depth], (token: Token) => token.value);
   if (op != null) {
+    let right = handleBinaryExpr(state, depth);
     return {
       type: 'binaryExpression',
       operator: op,
-      left: expression,
-      right: handleBinaryExpr(state, depth),
+      left,
+      right,
     };
   }
-  return expression;
+  return left;
 }
 
 function conditionalExpression(state: State): Tokens.Expression {
@@ -279,7 +285,7 @@ function assignmentExpression(state: State): Tokens.Expression {
   };
 }
 
-function expression(state: State): Tokens.Expression {
+export function expression(state: State): Tokens.Expression {
   let exprs = [];
   do {
     exprs.push(assignmentExpression(state));
