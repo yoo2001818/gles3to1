@@ -30,6 +30,12 @@ const ident = (start: number, value: string) => ({
   rawValue: value,
 });
 
+const call = (callee: any, ...args: any[]) => ({
+  type: 'callExpression',
+  callee,
+  arguments: args,
+})
+
 describe('parser', () => {
   it('should parse expressions correctly', () => {
     expect(parse('1 * 2 + 3 * 4', expression)).toEqual(bin('+',
@@ -73,5 +79,34 @@ describe('parser', () => {
         index: int(5, '0'),
       },
     })
+  });
+  it('should parse update expressions correctly', () => {
+    expect(parse('--a--', expression)).toEqual({
+      type: 'updateExpression',
+      operator: '--',
+      prefix: true,
+      argument: {
+        type: 'updateExpression',
+        operator: '--',
+        prefix: false,
+        argument: ident(2, 'a'),
+      },
+    });
+  });
+  it('should parse call expressions correctly', () => {
+    expect(parse('a.b(void)', expression)).toEqual(call({
+      type: 'memberExpression',
+      object: ident(0, 'a'),
+      index: ident(2, 'b'),
+    }));
+    expect(parse('vec4(1)', expression)).toEqual(call({
+      type: 'typeConstant',
+      value: 'vec4',
+      startPos: 0,
+      endPos: 4,
+      rawValue: 'vec4',
+    }, int(5, '1')));
+    expect(parse('a(a, b, c)', expression)).toEqual(call(ident(0, 'a'),
+      ident(2, 'a'), ident(5, 'b'), ident(8, 'c')));
   });
 });

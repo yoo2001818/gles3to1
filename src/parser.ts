@@ -115,6 +115,22 @@ function primaryConstantExpression(state: State): Tokens.Expression {
       'boolConstant', true, token),
     'false': (token: Token) => constantToken<Tokens.BoolConstant>(
       'boolConstant', false, token),
+    type: (token: Token) => {
+      let type = constantToken<Tokens.TypeConstant>(
+        'typeConstant', token.value, token);
+      pull(state, 'leftParen');
+      let args: Tokens.Expression[] = [];
+      do {
+        if (pullIf(state, 'void')) break;
+        args.push(constantExpression(state));
+      } while (pullIf(state, 'comma'));
+      pull(state, 'rightParen');
+      return {
+        type: 'callExpression',
+        callee: type,
+        arguments: args,
+      };
+    }
   });
 }
 
@@ -198,7 +214,7 @@ function unaryExpression(state: State): Tokens.Expression {
       return {
         type: 'updateExpression',
         operator: token.value,
-        prefix: false,
+        prefix: true,
         argument: postfixExpression(state),
       };
     case 'plus':
