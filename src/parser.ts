@@ -101,6 +101,17 @@ IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET SEMICOLON
 type_qualifier SEMICOLON
 */
 function declaration(state: State): Tokens.ExternalDeclaration {
+  // Detect precision for precision qualifiers
+  // Qualifier - can be empty
+  let qualifier = typeQualifier(state);
+  // Specifier - can be empty
+  let speciifer = typeSpecifier(state);
+  // Expect { or [ or ( or else. If { or ( is received specifier must be clean
+  // (it should have only an identifier)
+  // { -> struct_declaration_list
+  // [ -> constant_expression
+  // ( -> (const) (qualifier type_specifier) type_specifier identifier [ ? ]
+  // Expect , then repeat 
 }
 
 function primaryConstantExpression(state: State): Tokens.Expression {
