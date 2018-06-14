@@ -102,16 +102,46 @@ type_qualifier SEMICOLON
 */
 function declaration(state: State): Tokens.ExternalDeclaration {
   // Detect precision for precision qualifiers
+  if (pullIf(state, 'precision')) {
+    let precision = pull(state, 'precisionQualifier').value;
+    let type = typeSpecifierType(state);
+    return {
+      type: 'precisionDeclaration', precision, valueType: type,
+    };
+  }
   // Qualifier - can be empty
   let qualifier = typeQualifier(state);
   // Specifier - can be empty
-  let speciifer = typeSpecifier(state);
-  // Expect { or [ or ( or else. If { or ( is received specifier must be clean
-  // (it should have only an identifier)
-  // { -> struct_declaration_list
-  // [ -> constant_expression
-  // ( -> (const) (qualifier type_specifier) type_specifier identifier [ ? ]
-  // Expect , then repeat 
+  let specifier = typeSpecifier(state);
+  match(state, {
+    identifier: (token: Token) => {
+      let name = token.value;
+      if (pullIf(state, 'leftParen')) {
+        // function_prototype
+      }
+      do {
+        // init_declarator_list
+        match(state, {
+          leftBracket: () => {
+
+          },
+          equal: () => {
+
+          },
+        });
+      } while (pullIf(state, 'comma'));
+      pull(state, 'semicolon');
+    },
+    leftBrace: () => {
+      // struct_declaration_list, assert identifier
+    },
+    semicolon: () => {
+      return {
+        type: 'typeDeclaration',
+        valueType: specifier.valueType,
+      };
+    },
+  });
 }
 
 function primaryConstantExpression(state: State): Tokens.Expression {
@@ -330,12 +360,12 @@ function typeSpecifier(state: State): Tokens.TypeSpecifier {
   let valueType = typeSpecifierType(state);
   let isArray = false;
   let size = null;
-  if (pullIf(state, 'leftBrace')) {
+  if (pullIf(state, 'leftBracket')) {
     isArray = true;
-    if (peek(state).type !== 'rightBrace') {
+    if (peek(state).type !== 'rightBracket') {
       size = constantExpression(state);
     }
-    pull(state, 'rightBrace');
+    pull(state, 'rightBracket');
   }
   return { precision, valueType, isArray, size };
 }

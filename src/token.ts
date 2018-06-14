@@ -131,7 +131,7 @@ export type TypeDeclaration = Block & {
   valueType: TypeExpression,
 };
 
-,export type Declaration = FunctionPrototype | InitDeclaration |
+export type Declaration = FunctionPrototype | InitDeclaration |
   PrecisionDeclaration | TypeDeclaration;
 
 export type DeclarationStatement = Block & {
