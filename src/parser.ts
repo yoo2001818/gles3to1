@@ -115,22 +115,42 @@ function declaration(state: State): Tokens.ExternalDeclaration {
   let specifier = typeSpecifier(state);
   match(state, {
     identifier: (token: Token) => {
-      let name = token.value;
       if (pullIf(state, 'leftParen')) {
         // function_prototype
+        let name = token.value;
       }
+      state.push(token);
+      let list: Tokens.InitDeclaration[] = [];
       do {
-        // init_declarator_list
+        let name = pull(state, 'identifier').value;
+        let type = { ...qualifier, ...specifier };
+        if (pullIf(state, 'leftBracket')) {
+          // TODO Array
+        }
+        let value = null;
         match(state, {
-          leftBracket: () => {
-
+          leftBrace: () => {
+            // TODO
           },
           equal: () => {
-
+            value = constantExpression(state);
           },
+          otherwise: (token) => {
+            state.push(token);
+          },
+        });
+        list.push({
+          type: 'initDeclaration',
+          valueType: type,
+          name,
+          value,
         });
       } while (pullIf(state, 'comma'));
       pull(state, 'semicolon');
+      return {
+        type: 'initDeclarationList',
+        declarations: list,
+      }
     },
     leftBrace: () => {
       // struct_declaration_list, assert identifier
