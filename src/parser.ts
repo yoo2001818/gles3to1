@@ -118,6 +118,11 @@ function declaration(state: State): Tokens.ExternalDeclaration {
       if (pullIf(state, 'leftParen')) {
         // function_prototype
         let name = token.value;
+        // parameter declaration list
+        // const
+        // in out inout
+        // type_specifier or type_specifier IDENTIFIER ([ constant_exp ])
+        // type_specifier is not known
       }
       state.push(token);
       let list: Tokens.InitDeclaration[] = [];
@@ -125,15 +130,20 @@ function declaration(state: State): Tokens.ExternalDeclaration {
         let name = pull(state, 'identifier').value;
         let type = { ...qualifier, ...specifier };
         if (pullIf(state, 'leftBracket')) {
-          // TODO Array
+          if (!pullIf(state, 'rightBracket')) {
+            type.size = constantExpression(state);
+          } else {
+            type.size = null;
+          }
+          if (type.isArray) {
+            throw new Error('2D Array is not supported');
+          }
+          type.isArray = true;
         }
         let value = null;
         match(state, {
-          leftBrace: () => {
-            // TODO
-          },
           equal: () => {
-            value = constantExpression(state);
+            value = assignmentExpression(state);
           },
           otherwise: (token) => {
             state.push(token);
