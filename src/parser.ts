@@ -118,11 +118,35 @@ function declaration(state: State): Tokens.ExternalDeclaration {
       if (pullIf(state, 'leftParen')) {
         // function_prototype
         let name = token.value;
-        // parameter declaration list
-        // const
-        // in out inout
-        // type_specifier or type_specifier IDENTIFIER ([ constant_exp ])
-        // type_specifier is not known
+        let args: Tokens.ParameterDeclaration[] = [];
+        do {
+          let isConst = !!pullIf(state, 'const');
+          let qualifier = pullIf(state, ['in', 'out', 'inout'],
+            (v: Token) => v.value as 'in' | 'out' | 'inout');
+          let specifier = typeSpecifier(state);
+          let argName = pull(state, 'identifier').value;
+          if (pullIf(state, 'leftBracket')) {
+            if (specifier.isArray) {
+              throw new Error('2D array is not supported');
+            }
+            specifier.isArray = true;
+            specifier.size = constantExpression(state);
+            pull(state, 'rightBracket');
+          }
+          args.push({
+            name: argName,
+            isConst,
+            qualifier,
+            ...specifier,
+          });
+        } while (pullIf(state, 'comma'));
+        pull(state, 'rightParen');
+        return {
+          type: 'functionPrototype',
+          name,
+          returns: { ...specifier, ...qualifier },
+          arguments: args,
+        };
       }
       state.push(token);
       let list: Tokens.InitDeclaration[] = [];
@@ -162,8 +186,34 @@ function declaration(state: State): Tokens.ExternalDeclaration {
         declarations: list,
       }
     },
-    leftBrace: () => {
+    leftBrace: (token: Token) => {
       // struct_declaration_list, assert identifier
+      if (specifier.isArray) throw new Error('Unexpected array specifier');
+      state.push(token);
+      let declarations = structDeclarations(state);
+      let valueType: Tokens.FullType = {
+        ...qualifier,
+        precision: null,
+        valueType: {
+          type: 'structSpecifier',
+          name: specifier.valueType.value,
+          declarations,
+        },
+        isArray: false,
+        size: null,
+      };
+      let name = pull(state, 'identifier').value;
+      if (pullIf(state, 'leftBracket')) {
+        if (!pullIf(state, 'rightBracket')) {
+          type.size = constantExpression(state);
+        } else {
+          type.size = null;
+        }
+        if (type.isArray) {
+          throw new Error('2D Array is not supported');
+        }
+        type.isArray = true;
+      }
     },
     semicolon: () => {
       return {
@@ -417,6 +467,15 @@ function structType(state: State): Tokens.StructSpecifier {
   pull(state, 'struct');
   let name: string | null =
     pullIf(state, 'identifier', (token: Token) => token.value);
+  let declarations = structDeclarations(state);
+  return {
+    type: 'structSpecifier',
+    name,
+    declarations,
+  };
+}
+
+function structDeclarations(state: State): Tokens.StructDeclaration[] {
   pull(state, 'leftBrace');
   let declarations: Tokens.StructDeclaration[] = [];
   do {
@@ -434,11 +493,7 @@ function structType(state: State): Tokens.StructSpecifier {
     }
     pull(state, 'semicolon');
   } while (pullIf(state, 'rightBrace'));
-  return {
-    type: 'structSpecifier',
-    name,
-    declarations,
-  };
+  return declarations;
 }
 
 function typeQualifier(state: State): Tokens.TypeQualifier {
