@@ -187,33 +187,41 @@ function declaration(state: State): Tokens.ExternalDeclaration {
       }
     },
     leftBrace: (token: Token) => {
-      // struct_declaration_list, assert identifier
       if (specifier.isArray) throw new Error('Unexpected array specifier');
       state.push(token);
+      if (specifier.valueType.type !== 'identifier') {
+        throw new Error('Specifier must be identifier');
+      }
       let declarations = structDeclarations(state);
       let valueType: Tokens.FullType = {
         ...qualifier,
         precision: null,
         valueType: {
           type: 'structSpecifier',
-          name: specifier.valueType.value,
+          name: specifier.valueType.type,
           declarations,
         },
         isArray: false,
         size: null,
       };
-      let name = pull(state, 'identifier').value;
+      let name = pullIf(state, 'identifier', (token: Token) => token.value);
       if (pullIf(state, 'leftBracket')) {
-        if (!pullIf(state, 'rightBracket')) {
-          type.size = constantExpression(state);
-        } else {
-          type.size = null;
-        }
-        if (type.isArray) {
+        if (valueType.isArray) {
           throw new Error('2D Array is not supported');
         }
-        type.isArray = true;
+        valueType.isArray = true;
+        if (!pullIf(state, 'rightBracket')) {
+          valueType.size = constantExpression(state);
+        } else {
+          valueType.size = null;
+        }
       }
+      return {
+        type: 'initDeclaration',
+        valueType,
+        name,
+        value: null,
+      };
     },
     semicolon: () => {
       return {
