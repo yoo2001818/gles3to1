@@ -89,17 +89,30 @@ function main(state: State): Tokens.File {
   return output;
 }
 
-/*
-function_prototype SEMICOLON
-init_declarator_list SEMICOLON
-PRECISION precision_qualifier type_specifier_no_prec SEMICOLON
-type_qualifier IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE SEMICOLON
-type_qualifier IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE
-IDENTIFIER SEMICOLON
-type_qualifier IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE
-IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET SEMICOLON
-type_qualifier SEMICOLON
-*/
+function statement(state: State): Tokens.Statement {
+  // declaration_statement
+  // expression_statement 
+  // selection_statement (if)
+  // switch_statement (switch)
+  // case_label (case)
+  // iteration_statement (for, while)
+  // jump_statement (continue, break, return, discard)
+  // How do we determine if the given statement is declaration or expression?
+  // 1. precision -> declaration
+  // 2. typename -> dubious, since typename() does exist in GLSL
+  // 3. identifier -> dubious
+  // 4. uniform / in / out / const -> declaration
+  // 5. any other statment -> expression
+  //
+  // int hello( -> declaration
+  // hello( -> expression
+  // a b -> declaration
+  // int( -> expression
+  // a { int a } a -> declaration
+  // { int a } a -> declaration
+  // { } -> statement...
+}
+
 function declaration(state: State): Tokens.ExternalDeclaration {
   // Detect precision for precision qualifiers
   if (pullIf(state, 'precision')) {
