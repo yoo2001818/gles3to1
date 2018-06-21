@@ -90,27 +90,44 @@ function main(state: State): Tokens.File {
 }
 
 function statement(state: State): Tokens.Statement {
-  // declaration_statement
-  // expression_statement 
-  // selection_statement (if)
-  // switch_statement (switch)
-  // case_label (case)
-  // iteration_statement (for, while)
-  // jump_statement (continue, break, return, discard)
-  // How do we determine if the given statement is declaration or expression?
-  // 1. precision -> declaration
-  // 2. typename -> dubious, since typename() does exist in GLSL
-  // 3. identifier -> dubious
-  // 4. uniform / in / out / const -> declaration
-  // 5. any other statment -> expression
-  //
-  // int hello( -> declaration
-  // hello( -> expression
-  // a b -> declaration
-  // int( -> expression
-  // a { int a } a -> declaration
-  // { int a } a -> declaration
-  // { } -> statement...
+  let token = state.next();
+  if (['in', 'out', 'inout', 'struct', 'const', 'centroid', 'uniform',
+    'layout', 'invariant'].includes(token.type)
+  ) {
+    state.push(token);
+    // Declaration
+  } else if (['identifier', 'intConstant', 'floatConstant', 'boolConstant',
+    'leftParen', 'bang', 'dash', 'tlide', 'plus'].includes(token.type)
+  ) {
+    state.push(token);
+    // Expression
+  } else if (token.type === 'type') {
+    let nextToken = state.next();
+    if (nextToken.type == 'leftParen') {
+      // Expression
+    } else {
+      // Declaration
+    }
+  } else if (token.type === 'identifier') {
+    let nextToken = state.next();
+    if (nextToken.type === 'identifier') {
+      // Declaration
+    } else {
+      // Expression
+    }
+  } else if (token.type === 'if') {
+    // Selection
+  } else if (
+    token.type === 'for' || token.type === 'while' || token.type === 'do'
+  ) {
+    // Iteration
+  } else if (token.type === 'switch') {
+    // Switch
+  } else if (token.type === 'case' || token.type === 'default') {
+    // Case
+  } else if (['continue', 'break', 'return', 'discard'].includes(token.type)) {
+    // Jump
+  }
 }
 
 function declaration(state: State): Tokens.ExternalDeclaration {
@@ -125,7 +142,12 @@ function declaration(state: State): Tokens.ExternalDeclaration {
   // Qualifier - can be empty
   let qualifier = typeQualifier(state);
   // Specifier - can be empty
-  let specifier = typeSpecifier(state);
+  let specifier: Tokens.TypeSpecifier = {
+    precision: null, valueType: null, isArray: false, size: null,
+  };
+  if (peek(state).type !== 'leftParen') {
+    specifier = typeSpecifier(state);
+  }
   match(state, {
     identifier: (token: Token) => {
       if (pullIf(state, 'leftParen')) {
@@ -522,7 +544,7 @@ function typeQualifier(state: State): Tokens.TypeQualifier {
   let storage: string | null = null;
   let interpolation: string | null = null;
   let invariant: boolean = false;
-  if (peek(state).type === 'leftParen') {
+  if (pullIf(state, 'layout')) {
     layout = layoutQualifier(state);
   }
   invariant = !!pullIf(state, 'invariant');
