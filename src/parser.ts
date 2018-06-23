@@ -11,8 +11,12 @@ class State {
   constructor(lexer: Lexer) {
     this.lexer = lexer;
   }
-  push(token: Token) {
-    this.buffer.push(token);
+  push(token: Token | Token[]) {
+    if (Array.isArray(token)) {
+      this.buffer.push.apply(this.buffer, token);
+    } else {
+      this.buffer.push(token);
+    }
   }
   next(): Token | undefined {
     if (this.buffer.length > 0) {
@@ -22,6 +26,13 @@ class State {
       let token = this.lexer.next();
       if (token == null || !IGNORE_TOKENS.includes(token.type)) return token;
     }
+  }
+  nextList(size: number): Token[] {
+    let output: Token[] = [];
+    for (let i = 0; i < size; ++i) {
+      output.push(this.next());
+    }
+    return output;
   }
 }
 
@@ -69,6 +80,12 @@ function peek(state: State) {
   return token;
 }
 
+function peekList(state: State, size: number) {
+  let list = state.nextList(size);
+  state.push(list);
+  return list;
+}
+
 export default function parse(
   code: string, entry: (state: State) => any = main,
 ) {
@@ -90,42 +107,37 @@ function main(state: State): Tokens.File {
 }
 
 function statement(state: State): Tokens.Statement {
-  let token = state.next();
+  let tokens = peekList(state, 2);
+  let type = tokens[0].type;
   if (['in', 'out', 'inout', 'struct', 'const', 'centroid', 'uniform',
-    'layout', 'invariant'].includes(token.type)
+    'layout', 'invariant'].includes(type)
   ) {
-    state.push(token);
     // Declaration
   } else if (['identifier', 'intConstant', 'floatConstant', 'boolConstant',
-    'leftParen', 'bang', 'dash', 'tlide', 'plus'].includes(token.type)
+    'leftParen', 'bang', 'dash', 'tlide', 'plus'].includes(type)
   ) {
-    state.push(token);
     // Expression
-  } else if (token.type === 'type') {
-    let nextToken = state.next();
-    if (nextToken.type == 'leftParen') {
+  } else if (type === 'type') {
+    if (tokens[1].type == 'leftParen') {
       // Expression
     } else {
       // Declaration
     }
-  } else if (token.type === 'identifier') {
-    let nextToken = state.next();
-    if (nextToken.type === 'identifier') {
+  } else if (type === 'identifier') {
+    if (tokens[1].type === 'identifier') {
       // Declaration
     } else {
       // Expression
     }
-  } else if (token.type === 'if') {
+  } else if (type === 'if') {
     // Selection
-  } else if (
-    token.type === 'for' || token.type === 'while' || token.type === 'do'
-  ) {
+  } else if (type === 'for' || type === 'while' || type === 'do') {
     // Iteration
-  } else if (token.type === 'switch') {
+  } else if (type === 'switch') {
     // Switch
-  } else if (token.type === 'case' || token.type === 'default') {
+  } else if (type === 'case' || type === 'default') {
     // Case
-  } else if (['continue', 'break', 'return', 'discard'].includes(token.type)) {
+  } else if (['continue', 'break', 'return', 'discard'].includes(type)) {
     // Jump
   }
 }
