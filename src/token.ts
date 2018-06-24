@@ -136,7 +136,7 @@ export type Declaration = FunctionPrototype | InitDeclaration |
 
 export type DeclarationStatement = Block & {
   type: 'declarationStatement',
-  declaration: Declaration,
+  declaration: ExternalDeclaration,
 };
 
 export type ExpressionStatement = Block & {
@@ -147,8 +147,8 @@ export type ExpressionStatement = Block & {
 export type SelectionStatement = Block & {
   type: 'selectionStatement',
   test: Expression,
-  consequent: Expression,
-  alternate: null | Expression,
+  consequent: Statement,
+  alternate: null | Statement,
 };
 
 export type SwitchStatement = Block & {

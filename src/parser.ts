@@ -109,28 +109,24 @@ function main(state: State): Tokens.File {
 function statement(state: State): Tokens.Statement {
   let tokens = peekList(state, 2);
   let type = tokens[0].type;
-  if (['in', 'out', 'inout', 'struct', 'const', 'centroid', 'uniform',
+  if (type === 'leftBrace') {
+    return compoundStatement(state);
+  } else if (['in', 'out', 'inout', 'struct', 'const', 'centroid', 'uniform',
     'layout', 'invariant'].includes(type)
   ) {
-    // Declaration
+    return declarationStatement(state);
   } else if (['identifier', 'intConstant', 'floatConstant', 'boolConstant',
     'leftParen', 'bang', 'dash', 'tlide', 'plus'].includes(type)
   ) {
-    // Expression
+    return expressionStatement(state);
   } else if (type === 'type') {
-    if (tokens[1].type == 'leftParen') {
-      // Expression
-    } else {
-      // Declaration
-    }
+    if (tokens[1].type === 'leftParen') return expressionStatement(state);
+    else return declarationStatement(state);
   } else if (type === 'identifier') {
-    if (tokens[1].type === 'identifier') {
-      // Declaration
-    } else {
-      // Expression
-    }
+    if (tokens[1].type !== 'identifier') return expressionStatement(state);
+    else return declarationStatement(state);
   } else if (type === 'if') {
-    // Selection
+    return selectionStatement(state);
   } else if (type === 'for' || type === 'while' || type === 'do') {
     // Iteration
   } else if (type === 'switch') {
@@ -140,6 +136,42 @@ function statement(state: State): Tokens.Statement {
   } else if (['continue', 'break', 'return', 'discard'].includes(type)) {
     // Jump
   }
+}
+
+function selectionStatement(state: State): Tokens.SelectionStatement {
+  pull(state, 'if');
+  pull(state, 'leftParen');
+  const test = expression(state);
+  pull(state, 'rightParen');
+  const consequent = statement(state);
+  let alternate = null;
+  if (pullIf(state, 'else')) alternate = statement(state);
+  return {
+    type: 'selectionStatement',
+    test,
+    consequent,
+    alternate,
+  };
+}
+
+function compoundStatement(state: State): Tokens.CompoundStatement {
+  pull(state, 'leftBrace');
+  let list: Tokens.Statement[] = [];
+  do {
+    list.push(statement(state));
+  } while (peek(state).type === 'rightBrace');
+  pull(state, 'rightBrace');
+  return {
+    type: 'compoundStatement',
+    statements: list,
+  };
+}
+
+function declarationStatement(state: State): Tokens.DeclarationStatement {
+  return {
+    type: 'declarationStatement',
+    declaration: declaration(state),
+  };
 }
 
 function declaration(state: State): Tokens.ExternalDeclaration {
@@ -486,6 +518,15 @@ export function expression(state: State): Tokens.Expression {
   return {
     type: 'sequenceExpression',
     expressions: exprs,
+  };
+}
+
+function expressionStatement(state: State): Tokens.ExpressionStatement {
+  const expr = expression(state);
+  pull(state, 'semicolon');
+  return {
+    type: 'expressionStatement',
+    expression: expr,
   };
 }
 
