@@ -128,13 +128,11 @@ function statement(state: State): Tokens.Statement {
   } else if (type === 'if') {
     return selectionStatement(state);
   } else if (type === 'for' || type === 'while' || type === 'do') {
-    // Iteration
+    return iterationStatement(state);
   } else if (type === 'switch') {
-    // Switch
-  } else if (type === 'case' || type === 'default') {
-    // Case
+    return switchStatement(state);
   } else if (['continue', 'break', 'return', 'discard'].includes(type)) {
-    // Jump
+    return jumpStatement(state);
   }
 }
 
@@ -151,6 +149,95 @@ function selectionStatement(state: State): Tokens.SelectionStatement {
     test,
     consequent,
     alternate,
+  };
+}
+
+function iterationStatement(state: State): Tokens.IterationStatement {
+  return match(state, {
+    for: () => {
+      pull(state, 'leftParen');
+      let init = expression(state);
+      pull(state, 'semicolon');
+      let test = expression(state);
+      pull(state, 'semicolon');
+      let loop = expression(state);
+      pull(state, 'rightParen');
+      let stmt = statement(state);
+      return {
+        type: 'iterationStatement',
+        iterationType: 'for',
+        init, test, loop, statement: stmt,
+      };
+    },
+    while: () => {
+      pull(state, 'leftParen');
+      let test = expression(state);
+      pull(state, 'rightParen');
+      let stmt = statement(state);
+      return {
+        type: 'iterationStatement',
+        iterationType: 'while',
+        test, statement: stmt,
+      };
+    },
+    do: () => {
+      let stmt = statement(state);
+      pull(state, 'while');
+      pull(state, 'leftParen');
+      let test = expression(state);
+      pull(state, 'rightParen');
+      return {
+        type: 'iterationStatement',
+        iterationType: 'do while',
+        test, statement: stmt,
+      };
+    }
+  });
+}
+
+function switchStatement(state: State): Tokens.SwitchStatement {
+  pull(state, 'switch');
+  pull(state, 'leftParen');
+  let test = expression(state);
+  pull(state, 'rightParen');
+  pull(state, 'leftBrace');
+  let statements: Tokens.Statement[] = [];
+  do {
+    if (pullIf(state, 'case')) {
+      let value = expression(state);
+      pull(state, 'colon');
+      statements.push({
+        type: 'caseStatement',
+        isDefault: false,
+        value,
+      });
+    } else if (pullIf(state, 'default')) {
+      pull(state, 'colon');
+      statements.push({
+        type: 'caseStatement',
+        isDefault: true,
+        value: null,
+      });
+    } else {
+      statements.push(statement(state));
+    }
+  } while (peek(state).type !== 'rightBrace');
+  return {
+    type: 'switchStatement',
+    test, statements,
+  };
+}
+
+function jumpStatement(state: State): Tokens.JumpStatement {
+  let token = pull(state, ['break', 'continue', 'discard', 'return']);
+  let value = null;
+  if (token.type === 'return' && peek(state).type !== 'semicolon') {
+    value = expression(state);
+  }
+  return {
+    type: 'jumpStatement',
+    iterationType: token.type as ('break' | 'continue' | 'discard' | 'return'),
+    value,
   };
 }
 
@@ -511,10 +598,12 @@ function assignmentExpression(state: State): Tokens.Expression {
 
 export function expression(state: State): Tokens.Expression {
   let exprs = [];
-  do {
-    exprs.push(assignmentExpression(state));
-  } while (pullIf(state, 'comma'));
-  if (exprs.length === 1) return exprs[0];
+  if (peek(state).type !== 'semicolon') {
+    do {
+      exprs.push(assignmentExpression(state));
+    } while (pullIf(state, 'comma'));
+    if (exprs.length === 1) return exprs[0];
+  }
   return {
     type: 'sequenceExpression',
     expressions: exprs,

@@ -169,7 +169,7 @@ export type IterationStatement = Block & {
   init: Expression | null,
   test: Expression,
   loop: Expression | null,
-  statements: Statement[],
+  statement: Statement,
 };
 
 export type JumpStatement = Block & {
