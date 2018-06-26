@@ -96,13 +96,9 @@ export default function parse(
 
 function main(state: State): Tokens.File {
   let output: Tokens.ExternalDeclaration[] = [];
-  // Function prototype
-  // Variable delcaration
-  // Type declaration
-  while (match(state, {
-    otherwise: (token: Token) => {},
-    eof: () => true,
-  }) !== true);
+  while (peek(state) != null) {
+    output.push(externalDeclaration(state));
+  }
   return output;
 }
 
@@ -261,7 +257,25 @@ function declarationStatement(state: State): Tokens.DeclarationStatement {
   };
 }
 
-function declaration(state: State): Tokens.ExternalDeclaration {
+function externalDeclaration(state: State): Tokens.ExternalDeclaration {
+  const decl = declaration(state);
+  if (decl.type === 'functionPrototype') {
+    const prototype = decl as Tokens.FunctionPrototype;
+    if (peek(state).type === 'leftBrace') {
+      const stmt = compoundStatement(state);
+      return {
+        type: 'functionDeclaration',
+        name: prototype.name,
+        returns: prototype.returns,
+        arguments: prototype.arguments,
+        statement: stmt,
+      };
+    }
+  }
+  return decl;
+}
+
+function declaration(state: State): Tokens.Declaration {
   // Detect precision for precision qualifiers
   if (pullIf(state, 'precision')) {
     let precision = pull(state, 'precisionQualifier').value;

@@ -193,7 +193,7 @@ export type FunctionDeclaration = Block & {
   name: string,
   returns: FullType,
   arguments: ParameterDeclaration[],
-  statements: Statement[],
+  statement: CompoundStatement,
 };
 
 export type ExternalDeclaration = Declaration | FunctionDeclaration;
