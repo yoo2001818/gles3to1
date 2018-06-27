@@ -272,6 +272,7 @@ function externalDeclaration(state: State): Tokens.ExternalDeclaration {
       };
     }
   }
+  pull(state, 'semicolon');
   return decl;
 }
 
@@ -291,35 +292,42 @@ function declaration(state: State): Tokens.Declaration {
     precision: null, valueType: null, isArray: false, size: null,
   };
   if (peek(state).type !== 'leftParen') {
-    specifier = typeSpecifier(state);
+    if (pullIf(state, 'void')) {
+      specifier = null;
+    } else {
+      specifier = typeSpecifier(state);
+    }
   }
-  match(state, {
+  return match(state, {
     identifier: (token: Token) => {
       if (pullIf(state, 'leftParen')) {
         // function_prototype
         let name = token.value;
         let args: Tokens.ParameterDeclaration[] = [];
-        do {
-          let isConst = !!pullIf(state, 'const');
-          let qualifier = pullIf(state, ['in', 'out', 'inout'],
-            (v: Token) => v.value as 'in' | 'out' | 'inout');
-          let specifier = typeSpecifier(state);
-          let argName = pull(state, 'identifier').value;
-          if (pullIf(state, 'leftBracket')) {
-            if (specifier.isArray) {
-              throw new Error('2D array is not supported');
+        if (peek(state).type !== 'rightParen') {
+          do {
+            if (pullIf(state, 'void')) break;
+            let isConst = !!pullIf(state, 'const');
+            let qualifier = pullIf(state, ['in', 'out', 'inout'],
+              (v: Token) => v.value as 'in' | 'out' | 'inout');
+            let specifier = typeSpecifier(state);
+            let argName = pull(state, 'identifier').value;
+            if (pullIf(state, 'leftBracket')) {
+              if (specifier.isArray) {
+                throw new Error('2D array is not supported');
+              }
+              specifier.isArray = true;
+              specifier.size = constantExpression(state);
+              pull(state, 'rightBracket');
             }
-            specifier.isArray = true;
-            specifier.size = constantExpression(state);
-            pull(state, 'rightBracket');
-          }
-          args.push({
-            name: argName,
-            isConst,
-            qualifier,
-            ...specifier,
-          });
-        } while (pullIf(state, 'comma'));
+            args.push({
+              name: argName,
+              isConst,
+              qualifier,
+              ...specifier,
+            });
+          } while (pullIf(state, 'comma'));
+        }
         pull(state, 'rightParen');
         return {
           type: 'functionPrototype',
@@ -467,10 +475,12 @@ function postfixExpression(state: State): Tokens.Expression {
     },
     leftParen: () => {
       let args: Tokens.Expression[] = [];
-      do {
-        if (pullIf(state, 'void')) break;
-        args.push(constantExpression(state));
-      } while (pullIf(state, 'comma'));
+      if (peek(state).type !== 'rightParen') {
+        do {
+          if (pullIf(state, 'void')) break;
+          args.push(constantExpression(state));
+        } while (pullIf(state, 'comma'));
+      }
       pull(state, 'rightParen');
       expression = {
         type: 'callExpression',

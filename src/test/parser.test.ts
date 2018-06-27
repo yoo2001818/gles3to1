@@ -109,4 +109,18 @@ describe('parser', () => {
     expect(parse('a(a, b, c)', expression)).toEqual(call(ident(0, 'a'),
       ident(2, 'a'), ident(5, 'b'), ident(8, 'c')));
   });
+  it('should parse function prototypes', () => {
+    expect(parse('int something(int a);'));
+    expect(parse('int something();'));
+    expect(parse('int something(void);'));
+    expect(parse('int something(int a, int b);'));
+    expect(parse('void something(int a, int b);'));
+  });
+  it('should parse variable declarations', () => {
+    expect(parse('int a;'));
+    expect(parse('uniform a[5];'));
+    expect(parse('uniform int a[5];'));
+    expect(parse('uniform lowp int a[5];'));
+    expect(parse('uniform lowp mat4[bc] a;'));
+  });
 });
