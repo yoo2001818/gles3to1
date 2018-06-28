@@ -20,7 +20,7 @@ class State {
   }
   next(): Token | undefined {
     if (this.buffer.length > 0) {
-      return this.buffer.shift();
+      return this.buffer.pop();
     }
     while (true) {
       let token = this.lexer.next();
@@ -251,9 +251,11 @@ function compoundStatement(state: State): Tokens.CompoundStatement {
 }
 
 function declarationStatement(state: State): Tokens.DeclarationStatement {
+  const decl = declaration(state);
+  pull(state, 'semicolon');
   return {
     type: 'declarationStatement',
-    declaration: declaration(state),
+    declaration: decl,
   };
 }
 
@@ -344,6 +346,7 @@ function declaration(state: State): Tokens.Declaration {
         if (pullIf(state, 'leftBracket')) {
           if (!pullIf(state, 'rightBracket')) {
             type.size = constantExpression(state);
+            pull(state, 'rightBracket');
           } else {
             type.size = null;
           }
@@ -368,7 +371,6 @@ function declaration(state: State): Tokens.Declaration {
           value,
         });
       } while (pullIf(state, 'comma'));
-      pull(state, 'semicolon');
       return {
         type: 'initDeclarationList',
         declarations: list,

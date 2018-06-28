@@ -118,7 +118,6 @@ describe('parser', () => {
   });
   it('should parse variable declarations', () => {
     expect(parse('int a;'));
-    expect(parse('uniform a[5];'));
     expect(parse('uniform int a[5];'));
     expect(parse('uniform lowp int a[5];'));
     expect(parse('uniform lowp mat4[bc] a;'));
