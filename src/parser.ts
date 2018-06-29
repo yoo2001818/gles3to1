@@ -13,7 +13,9 @@ class State {
   }
   push(token: Token | Token[]) {
     if (Array.isArray(token)) {
-      this.buffer.push.apply(this.buffer, token);
+      for (let i = token.length - 1; i >= 0; --i) {
+        this.buffer.push(token[i]);
+      }
     } else {
       this.buffer.push(token);
     }
@@ -129,6 +131,9 @@ function statement(state: State): Tokens.Statement {
     return switchStatement(state);
   } else if (['continue', 'break', 'return', 'discard'].includes(type)) {
     return jumpStatement(state);
+  } else if (type === 'semicolon') {
+    pull(state, 'semicolon');
+    return null;
   }
 }
 
@@ -230,6 +235,7 @@ function jumpStatement(state: State): Tokens.JumpStatement {
   if (token.type === 'return' && peek(state).type !== 'semicolon') {
     value = expression(state);
   }
+  pull(state, 'semicolon');
   return {
     type: 'jumpStatement',
     iterationType: token.type as ('break' | 'continue' | 'discard' | 'return'),
@@ -240,9 +246,9 @@ function jumpStatement(state: State): Tokens.JumpStatement {
 function compoundStatement(state: State): Tokens.CompoundStatement {
   pull(state, 'leftBrace');
   let list: Tokens.Statement[] = [];
-  do {
+  while (peek(state).type !== 'rightBrace') {
     list.push(statement(state));
-  } while (peek(state).type === 'rightBrace');
+  }
   pull(state, 'rightBrace');
   return {
     type: 'compoundStatement',
@@ -302,7 +308,8 @@ function declaration(state: State): Tokens.Declaration {
   }
   return match(state, {
     identifier: (token: Token) => {
-      if (pullIf(state, 'leftParen')) {
+      let lookahead = state.next();
+      if (lookahead.type === 'leftParen') {
         // function_prototype
         let name = token.value;
         let args: Tokens.ParameterDeclaration[] = [];
@@ -338,6 +345,7 @@ function declaration(state: State): Tokens.Declaration {
           arguments: args,
         };
       }
+      state.push(lookahead);
       state.push(token);
       let list: Tokens.InitDeclaration[] = [];
       do {

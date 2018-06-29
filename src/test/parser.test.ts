@@ -122,4 +122,18 @@ describe('parser', () => {
     expect(parse('uniform lowp int a[5];'));
     expect(parse('uniform lowp mat4[bc] a;'));
   });
+  it('should parse full code', () => {
+    expect(parse(`
+      uniform mat4 projection;
+      uniform mat4 view;
+      uniform mat4 model;
+
+      void main() {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0) * model * view * projection;
+        int a = 5;
+        a += 12;
+        return a;
+      }
+    `));
+  })
 });
