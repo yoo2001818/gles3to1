@@ -45,7 +45,9 @@ function match<T>(
   let type = token == null ? 'eof' : token.type;
   if (patterns[type] != null) return patterns[type](token);
   if (patterns['otherwise'] != null) return patterns['otherwise'](token);
-  throw new Error('Unexpected token ' + (token == null ? type : token.value));
+  throw new Error('Unexpected token ' + (token == null ? type : token.value) +
+    ', expected one of: ' + Object.keys(patterns).join(', ') +
+    ' at line ' + token.line + ',' + token.col);
 }
 
 function pull(state: State, type: string | string[]) {
@@ -53,7 +55,7 @@ function pull(state: State, type: string | string[]) {
   if (token == null) throw new Error('Unexpected end of input');
   if (Array.isArray(type) ? !type.includes(token.type) : token.type !== type) {
     throw new Error('Token error; expected ' + type + ' but received ' +
-      token.type);
+      token.type + ' at line ' + token.line + ',' + token.col);
   }
   return token;
 }
@@ -105,24 +107,9 @@ function main(state: State): Tokens.File {
 }
 
 function statement(state: State): Tokens.Statement {
-  let tokens = peekList(state, 2);
-  let type = tokens[0].type;
+  let type = peek(state).type;
   if (type === 'leftBrace') {
     return compoundStatement(state);
-  } else if (['in', 'out', 'inout', 'struct', 'const', 'centroid', 'uniform',
-    'layout', 'invariant'].includes(type)
-  ) {
-    return declarationStatement(state);
-  } else if (['identifier', 'intConstant', 'floatConstant', 'boolConstant',
-    'leftParen', 'bang', 'dash', 'tlide', 'plus'].includes(type)
-  ) {
-    return expressionStatement(state);
-  } else if (type === 'type') {
-    if (tokens[1].type === 'leftParen') return expressionStatement(state);
-    else return declarationStatement(state);
-  } else if (type === 'identifier') {
-    if (tokens[1].type !== 'identifier') return expressionStatement(state);
-    else return declarationStatement(state);
   } else if (type === 'if') {
     return selectionStatement(state);
   } else if (type === 'for' || type === 'while' || type === 'do') {
@@ -134,6 +121,36 @@ function statement(state: State): Tokens.Statement {
   } else if (type === 'semicolon') {
     pull(state, 'semicolon');
     return null;
+  } else {
+    return expressionOrDeclarationStatement(state);
+  }
+}
+
+function expressionOrDeclarationStatement(
+  state: State,
+): Tokens.ExpressionStatement | Tokens.DeclarationStatement {
+  let tokens = peekList(state, 2);
+  let type = tokens[0].type;
+   if (['in', 'out', 'inout', 'struct', 'const', 'centroid', 'uniform',
+    'layout', 'invariant'].includes(type)
+  ) {
+    return declarationStatement(state);
+  } else if (['intConstant', 'floatConstant', 'boolConstant',
+    'leftParen', 'bang', 'dash', 'tlide', 'plus'].includes(type)
+  ) {
+    return expressionStatement(state);
+  } else if (type === 'type') {
+    if (tokens[1].type === 'leftParen') return expressionStatement(state);
+    else return declarationStatement(state);
+  } else if (type === 'identifier') {
+    if (tokens[1].type !== 'identifier') return expressionStatement(state);
+    else return declarationStatement(state);
+  } else if (['precision', 'precisionQualifier', 'layout', 'invariant',
+    'interpolationQualifier'].includes(type)
+  ) {
+    return declarationStatement(state);
+  } else {
+    throw new Error('Failed.');
   }
 }
 
@@ -157,12 +174,18 @@ function iterationStatement(state: State): Tokens.IterationStatement {
   return match(state, {
     for: () => {
       pull(state, 'leftParen');
-      let init = expression(state);
-      pull(state, 'semicolon');
-      let test = expression(state);
-      pull(state, 'semicolon');
-      let loop = expression(state);
-      pull(state, 'rightParen');
+      let init;
+      init = expressionOrDeclarationStatement(state);
+      let test = null;
+      if (!pullIf(state, 'semicolon')) {
+        test = expression(state);
+        pull(state, 'semicolon');
+      }
+      let loop = null;
+      if (!pullIf(state, 'rightParen')) {
+        loop = expression(state);
+        pull(state, 'rightParen');
+      }
       let stmt = statement(state);
       return {
         type: 'iterationStatement',
@@ -421,7 +444,8 @@ function declaration(state: State): Tokens.Declaration {
         value: null,
       };
     },
-    semicolon: () => {
+    semicolon: (token: Token) => {
+      state.push(token);
       return {
         type: 'typeDeclaration',
         valueType: specifier.valueType,
@@ -711,7 +735,7 @@ function structDeclarations(state: State): Tokens.StructDeclaration[] {
       });
     }
     pull(state, 'semicolon');
-  } while (pullIf(state, 'rightBrace'));
+  } while (!pullIf(state, 'rightBrace'));
   return declarations;
 }
 
@@ -726,7 +750,7 @@ function typeQualifier(state: State): Tokens.TypeQualifier {
   invariant = !!pullIf(state, 'invariant');
   interpolation = pullIf(state, 'interpolationQualifier',
     (token: Token) => token.value);
-  if (['const', 'in', 'out', 'centroid', 'uniform']
+  if (['const', 'in', 'out', 'varying', 'attribute', 'centroid', 'uniform']
     .includes(peek(state).type)
   ) {
     storage = storageQualifier(state);
@@ -755,6 +779,8 @@ function storageQualifier(state: State): string {
     const: () => 'const',
     in: () => 'in',
     out: () => 'out',
+    varying: () => 'varying',
+    attribute: () => 'attribute',
     uniform: () => 'uniform',
     centroid: () => match(state, {
       in: () => 'centroid in',

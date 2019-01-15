@@ -166,7 +166,7 @@ export type CaseStatement = Block & {
 export type IterationStatement = Block & {
   type: 'iterationStatement',
   iterationType: 'for' | 'while' | 'do while',
-  init: Expression | null,
+  init: DeclarationStatement | ExpressionStatement | null,
   test: Expression,
   loop: Expression | null,
   statement: Statement,

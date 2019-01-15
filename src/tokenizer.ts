@@ -1,9 +1,10 @@
 import moo from 'moo';
 
 const lexer = moo.compile({
+  NL: { match: /\n/, lineBreaks: true },
+  pragma: /^\s*\#.+$/,
   WS: /[ \t]+/,
   comment: /\/\/.+$|\/\*(?:.|\s)*?\*\//,
-  pragma: /^\s*\#.+$/,
   identifier: {
     match: /[a-zA-Z_](?:[a-zA-Z_0-9]*)/,
     keywords: {
@@ -24,6 +25,8 @@ const lexer = moo.compile({
       out: 'out',
       inout: 'inout',
       uniform: 'uniform',
+      varying: 'varying',
+      attribute: 'attribute',
       struct: 'struct',
       void: 'void',
       while: 'while',
@@ -92,7 +95,6 @@ const lexer = moo.compile({
   ampersand: '&',
   question: '?',
   period: '.',
-  NL: { match: /\n/, lineBreaks: true },
 });
 
 export default function tokenize(code: string) {
