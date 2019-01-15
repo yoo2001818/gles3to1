@@ -489,7 +489,10 @@ function primaryExpression(state: State): Tokens.Expression {
   if (pullIf(state, 'leftParen')) {
     let value = expression(state);
     pull(state, 'rightParen');
-    return value;
+    return {
+      type: 'groupExpression',
+      value: value,
+    };
   }
   return primaryConstantExpression(state);
 }

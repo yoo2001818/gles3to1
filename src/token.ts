@@ -42,6 +42,11 @@ export type BinaryExpression = Block & {
   right: Expression,
 };
 
+export type GroupExpression = Block & {
+  type: 'groupExpression',
+  value: Expression,
+}
+
 export type ConditionalExpression = Block & {
   type: 'conditionalExpression',
   test: Expression,
@@ -62,7 +67,7 @@ export type SeqeunceExpression = Block & {
 };
 
 export type PrimaryExpression = Identifier | IntConstant | UintConstant |
-  FloatConstant | BoolConstant;
+  FloatConstant | BoolConstant | GroupExpression;
 export type PostfixExpression = PrimaryExpression | 
   ArrayExpression | MemberExpression | CallExpression | UpdateExpression;
 export type ConstantExpression = PrimaryExpression | PostfixExpression |
